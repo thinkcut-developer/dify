@@ -25,7 +25,7 @@
 
 
   const originalIframeStyleText = `
-    position: absolute;
+    position: fixed;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -48,7 +48,7 @@
   `
 
   const expandedIframeStyleText = `
-    position: absolute;
+    position: fixed;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -134,11 +134,6 @@
     const baseUrl =
       config.baseUrl || `https://${config.isDev ? "dev." : ""}udify.app`;
     const targetOrigin = new URL(baseUrl).origin;
-
-    // Pass sendOnEnter config as URL parameter
-    if (config.sendOnEnter === false) {
-      params.set('sendOnEnter', 'false');
-    }
 
     // pre-check the length of the URL
     const iframeUrl = `${baseUrl}/chatbot/${config.token}?${params}`;

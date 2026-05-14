@@ -189,6 +189,14 @@ docker/volumes/mysql/*
 docker/volumes/seekdb/*
 !docker/volumes/oceanbase/init.d
 docker/volumes/iris/*
+docker/volumes-new/app/storage/*
+docker/volumes-new/certbot/*
+docker/volumes-new/db/data/*
+docker/volumes-new/redis/data/*
+docker/volumes-new/weaviate/*
+docker/volumes-new/plugin_daemon/*
+docker/volumes-new/sandbox/dependencies/*
+docker/volumes-new/sandbox/conf/*
 
 docker/nginx/conf.d/default.conf
 docker/nginx/ssl/*

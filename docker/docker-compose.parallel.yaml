@@ -1,0 +1,63 @@
+# Overlay for running a second Dify stack on the same host without data/path collisions.
+# Use together with docker-compose.yaml and .env.parallel.
+
+name: dify_parallel
+
+services:
+  init_permissions:
+    volumes:
+      - ./volumes-new/app/storage:/app/api/storage
+
+  api:
+    volumes:
+      - ./volumes-new/app/storage:/app/api/storage
+
+  worker:
+    volumes:
+      - ./volumes-new/app/storage:/app/api/storage
+
+  db_postgres:
+    volumes:
+      - ./volumes-new/db/data:/var/lib/postgresql/data
+
+  db_mysql:
+    volumes:
+      - ${MYSQL_HOST_VOLUME:-./volumes-new/mysql/data}:/var/lib/mysql
+
+  redis:
+    volumes:
+      - ./volumes-new/redis/data:/data
+
+  weaviate:
+    volumes:
+      - ./volumes-new/weaviate:/var/lib/weaviate
+
+  sandbox:
+    volumes:
+      - ./volumes-new/sandbox/dependencies:/dependencies
+      - ./volumes-new/sandbox/conf:/conf
+
+  plugin_daemon:
+    volumes:
+      - ./volumes-new/plugin_daemon:/app/storage
+
+  certbot:
+    volumes:
+      - ./volumes-new/certbot/conf:/etc/letsencrypt
+      - ./volumes-new/certbot/www:/var/www/html
+      - ./volumes-new/certbot/logs:/var/log/letsencrypt
+      - ./volumes-new/certbot/conf/live:/etc/letsencrypt/live
+      - ./certbot/update-cert.template.txt:/update-cert.template.txt
+      - ./certbot/docker-entrypoint.sh:/docker-entrypoint.sh
+
+  nginx:
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template
+      - ./nginx/proxy.conf.template:/etc/nginx/proxy.conf.template
+      - ./nginx/https.conf.template:/etc/nginx/https.conf.template
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint-mount.sh
+      - ./nginx/ssl-new:/etc/ssl
+      - ./volumes-new/certbot/conf/live:/etc/letsencrypt/live
+      - ./volumes-new/certbot/conf:/etc/letsencrypt
+      - ./volumes-new/certbot/www:/var/www/html

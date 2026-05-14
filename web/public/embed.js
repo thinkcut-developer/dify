@@ -33,18 +33,22 @@
     right: var(--${buttonId}-right, 1rem); /* Align with dify-chatbot-bubble-button. */
     bottom: var(--${buttonId}-bottom, 1rem); /* Align with dify-chatbot-bubble-button. */
     left: unset;
-    width: 24rem;
-    max-width: calc(100vw - 2rem);
-    height: 43.75rem;
-    max-height: calc(100vh - 6rem);
-    border: none;
-    border-radius: 1rem;
+    width: 25.5rem;
+    max-width: calc(100vw - 1.5rem);
+    height: 44rem;
+    max-height: calc(100vh - 5rem);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1.25rem;
+    background: #ffffff;
+    box-shadow:
+      0 24px 48px rgba(2, 6, 23, 0.14),
+      0 10px 20px rgba(2, 6, 23, 0.08);
     z-index: 2147483640;
     overflow: hidden;
     user-select: none;
-    transition-property: width, height;
+    transition-property: width, height, transform, opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: 180ms;
   `
 
   const expandedIframeStyleText = `
@@ -56,20 +60,24 @@
     right: var(--${buttonId}-right, 1rem); /* Align with dify-chatbot-bubble-button. */
     bottom: var(--${buttonId}-bottom, 1rem); /* Align with dify-chatbot-bubble-button. */
     left: unset;
-    min-width: 24rem;
-    width: 48%;
-    max-width: 40rem; /* Match mobile breakpoint*/
-    min-height: 43.75rem;
-    height: 88%;
-    max-height: calc(100vh - 6rem);
-    border: none;
-    border-radius: 1rem;
+    min-width: 25.5rem;
+    width: 52%;
+    max-width: 42rem; /* Match mobile breakpoint*/
+    min-height: 44rem;
+    height: 90%;
+    max-height: calc(100vh - 5rem);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1.25rem;
+    background: #ffffff;
+    box-shadow:
+      0 30px 64px rgba(2, 6, 23, 0.18),
+      0 12px 24px rgba(2, 6, 23, 0.1);
     z-index: 2147483640;
     overflow: hidden;
     user-select: none;
-    transition-property: width, height;
+    transition-property: width, height, transform, opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: 180ms;
   `
 
   // Main function to embed the chatbot
@@ -267,20 +275,37 @@
           right: var(--${containerDiv.id}-right, 1rem);
           left: var(--${containerDiv.id}-left, unset);
           top: var(--${containerDiv.id}-top, unset);
-          width: var(--${containerDiv.id}-width, 48px);
-          height: var(--${containerDiv.id}-height, 48px);
-          border-radius: var(--${containerDiv.id}-border-radius, 25px);
-          background-color: var(--${containerDiv.id}-bg-color, #155EEF);
-          box-shadow: var(--${containerDiv.id}-box-shadow, rgba(0, 0, 0, 0.2) 0px 4px 8px 0px);
+          width: var(--${containerDiv.id}-width, 56px);
+          height: var(--${containerDiv.id}-height, 56px);
+          border-radius: var(--${containerDiv.id}-border-radius, 18px);
+          background: var(--${containerDiv.id}-bg-color, linear-gradient(135deg, #0F62FE 0%, #155EEF 48%, #1A4DDB 100%));
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          box-shadow: var(--${containerDiv.id}-box-shadow, 0 16px 28px rgba(21, 94, 239, 0.38), 0 6px 14px rgba(15, 23, 42, 0.28));
           cursor: pointer;
+          overflow: hidden;
+          transform: translateZ(0);
+          transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms ease, filter 180ms ease;
+          -webkit-tap-highlight-color: transparent;
           z-index: 2147483647;
+        }
+      `);
+      styleSheet.sheet.insertRule(`
+        #${containerDiv.id}:hover {
+          transform: translateY(-1px) scale(1.02);
+          box-shadow: 0 18px 34px rgba(21, 94, 239, 0.44), 0 10px 18px rgba(15, 23, 42, 0.3);
+        }
+      `);
+      styleSheet.sheet.insertRule(`
+        #${containerDiv.id}:active {
+          transform: translateY(0) scale(0.98);
+          filter: saturate(1.1);
         }
       `);
 
       // Create display div for the button icon
       const displayDiv = document.createElement("div");
       displayDiv.style.cssText =
-        "position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; z-index: 2147483647;";
+        "position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; z-index: 2147483647; backdrop-filter: saturate(1.12);";
       displayDiv.innerHTML = svgIcons;
       containerDiv.appendChild(displayDiv);
       document.body.appendChild(containerDiv);

@@ -842,8 +842,9 @@ services:
 
   # Frontend web application.
   web:
-    image: langgenius/dify-web:1.13.3
+    image: sezerogras/thinkai:1.13.3
     restart: always
+    platform: linux/amd64
     environment:
       CONSOLE_API_URL: ${CONSOLE_API_URL:-}
       APP_API_URL: ${APP_API_URL:-}

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import PoweredByBrand from '../powered-by-brand'
 
 describe('PoweredByBrand', () => {
-  it('should render the workspace logo when available', () => {
+  it('should prioritize custom web app logo when both logos are available', () => {
     render(
       <PoweredByBrand
         imgKey={1}
@@ -13,7 +13,7 @@ describe('PoweredByBrand', () => {
     )
 
     expect(screen.getByText('POWERED BY')).toBeInTheDocument()
-    expect(screen.getByAltText('logo')).toHaveAttribute('src', 'https://example.com/workspace-logo.png')
+    expect(screen.getByAltText('logo')).toHaveAttribute('src', 'https://example.com/custom-logo.png?hash=1')
   })
 
   it('should fall back to the custom web app logo when workspace branding is unavailable', () => {

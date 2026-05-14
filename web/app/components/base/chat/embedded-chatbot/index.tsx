@@ -81,14 +81,14 @@ const Chatbot = () => {
               'flex shrink-0 items-center gap-1.5 px-2',
             )}
             >
-              <div className="system-2xs-medium-uppercase text-text-tertiary">{t('chat.poweredBy', { ns: 'share' })}</div>
               {
-                systemFeatures.branding.enabled && systemFeatures.branding.workspace_logo
-                  ? <img src={systemFeatures.branding.workspace_logo} alt="logo" className="block h-5 w-auto" />
-                  : appData?.custom_config?.replace_webapp_logo
-                    ? <img src={`${appData?.custom_config?.replace_webapp_logo}`} alt="logo" className="block h-5 w-auto" />
+                appData?.custom_config?.replace_webapp_logo
+                  ? <img src={`${appData?.custom_config?.replace_webapp_logo}`} alt="logo" className="block h-5 w-auto" />
+                  : systemFeatures.branding.enabled && systemFeatures.branding.workspace_logo
+                    ? <img src={systemFeatures.branding.workspace_logo} alt="logo" className="block h-5 w-auto" />
                     : <DifyLogo size="small" />
               }
+              <div className="system-1xs-medium-uppercase text-[8px] text-text-tertiary">{t('chat.poweredBy', { ns: 'share' })}</div>
             </div>
           )}
         </div>

@@ -16,14 +16,14 @@ const PoweredByBrand = ({
   if (webappBrandRemoved)
     return null
 
-  const previewLogo = workspaceLogo || (webappLogo ? `${webappLogo}?hash=${imgKey}` : '')
+  const previewLogo = webappLogo ? `${webappLogo}?hash=${imgKey}` : (workspaceLogo || '')
 
   return (
     <>
-      <div className="text-text-tertiary system-2xs-medium-uppercase">POWERED BY</div>
       {previewLogo
         ? <img src={previewLogo} alt="logo" className="block h-5 w-auto" />
         : <DifyLogo size="small" />}
+      <div className="system-1xs-medium-uppercase text-[8px] text-text-tertiary">POWERED BY</div>
     </>
   )
 }

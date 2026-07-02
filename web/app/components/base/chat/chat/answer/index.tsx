@@ -14,6 +14,7 @@ import AnswerIcon from '@/app/components/base/answer-icon'
 import Citation from '@/app/components/base/chat/chat/citation'
 import LoadingAnim from '@/app/components/base/chat/chat/loading-anim'
 import { FileList } from '@/app/components/base/file-uploader'
+import useTheme from '@/hooks/use-theme'
 import { cn } from '@/utils/classnames'
 import ContentSwitch from '../content-switch'
 import { useChatContext } from '../context'
@@ -59,6 +60,8 @@ const Answer: FC<AnswerProps> = ({
   onHumanInputFormSubmit,
 }) => {
   const { t } = useTranslation()
+  const { theme: appTheme } = useTheme()
+  const isDarkMode = appTheme === 'dark'
   const {
     content,
     citation,
@@ -73,6 +76,9 @@ const Answer: FC<AnswerProps> = ({
   } = item
   const hasAgentThoughts = !!agent_thoughts?.length
   const hasHumanInputs = !!humanInputFormDataList?.length || !!humanInputFilledFormDataList?.length
+  const standaloneHumanInputFilledFormDataList = humanInputFilledFormDataList?.filter(
+    formData => !humanInputFormDataList?.some(item => item.node_id === formData.node_id),
+  ) || []
 
   const [containerWidth, setContainerWidth] = useState(0)
   const [contentWidth, setContentWidth] = useState(0)
@@ -158,7 +164,12 @@ const Answer: FC<AnswerProps> = ({
           <div className={cn('group relative pr-10', chatAnswerContainerInner)} data-testid="chat-answer-container-humaninput">
             <div
               ref={humanInputFormContainerRef}
-              className={cn('relative inline-block w-full max-w-full rounded-2xl bg-chat-bubble-bg px-4 py-3 text-text-primary body-lg-regular')}
+              className={cn(
+                'relative inline-block w-full max-w-full rounded-[22px] px-5 py-3.5 backdrop-blur-sm body-lg-regular',
+                isDarkMode
+                  ? 'border border-white/10 bg-[linear-gradient(180deg,rgba(17,24,39,0.96)_0%,rgba(15,23,42,0.92)_100%)] text-slate-50 shadow-[0_16px_30px_rgba(2,6,23,0.28)]'
+                  : 'border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] text-slate-900 shadow-[0_18px_32px_rgba(148,163,184,0.22)]',
+              )}
             >
               {
                 !responding && contentIsEmpty && !hasAgentThoughts && (
@@ -189,15 +200,16 @@ const Answer: FC<AnswerProps> = ({
                 humanInputFormDataList && humanInputFormDataList.length > 0 && (
                   <HumanInputFormList
                     humanInputFormDataList={humanInputFormDataList}
+                    humanInputFilledFormDataList={humanInputFilledFormDataList}
                     onHumanInputFormSubmit={onHumanInputFormSubmit}
                     getHumanInputNodeData={getHumanInputNodeData}
                   />
                 )
               }
               {
-                humanInputFilledFormDataList && humanInputFilledFormDataList.length > 0 && (
+                standaloneHumanInputFilledFormDataList.length > 0 && (
                   <HumanInputFilledFormList
-                    humanInputFilledFormDataList={humanInputFilledFormDataList}
+                    humanInputFilledFormDataList={standaloneHumanInputFilledFormDataList}
                   />
                 )
               }
@@ -224,10 +236,15 @@ const Answer: FC<AnswerProps> = ({
         {/* Block 2: Response Content (when human inputs exist) */}
         {hasHumanInputs && (responding || !contentIsEmpty || hasAgentThoughts) && (
           <div className={cn('group relative mt-2 pr-10', chatAnswerContainerInner)}>
-            <div className="absolute -top-2 left-6 h-3 w-0.5 bg-chat-answer-human-input-form-divider-bg" />
+            <div className="absolute -top-2 left-6 h-3 w-0.5 bg-chat-answer-human-input-form-divider-bg opacity-80" />
             <div
               ref={contentRef}
-              className="relative inline-block w-full max-w-full rounded-2xl bg-chat-bubble-bg px-4 py-3 text-text-primary body-lg-regular"
+              className={cn(
+                'relative inline-block w-full max-w-full rounded-[22px] px-5 py-3.5 backdrop-blur-sm body-lg-regular',
+                isDarkMode
+                  ? 'border border-white/10 bg-[linear-gradient(180deg,rgba(17,24,39,0.96)_0%,rgba(15,23,42,0.92)_100%)] text-slate-50 shadow-[0_16px_30px_rgba(2,6,23,0.28)]'
+                  : 'border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] text-slate-900 shadow-[0_18px_32px_rgba(148,163,184,0.22)]',
+              )}
             >
               {
                 !responding && (
@@ -322,7 +339,13 @@ const Answer: FC<AnswerProps> = ({
           <div className={cn('group relative pr-10', chatAnswerContainerInner)} data-testid="chat-answer-container-inner">
             <div
               ref={contentRef}
-              className={cn('relative inline-block max-w-full rounded-2xl bg-chat-bubble-bg px-4 py-3 text-text-primary body-lg-regular', workflowProcess && 'w-full')}
+              className={cn(
+                'relative inline-block max-w-full rounded-[22px] px-5 py-3.5 backdrop-blur-sm body-lg-regular',
+                isDarkMode
+                  ? 'border border-white/10 bg-[linear-gradient(180deg,rgba(17,24,39,0.96)_0%,rgba(15,23,42,0.92)_100%)] text-slate-50 shadow-[0_16px_30px_rgba(2,6,23,0.28)]'
+                  : 'border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] text-slate-900 shadow-[0_18px_32px_rgba(148,163,184,0.22)]',
+                workflowProcess && 'w-full',
+              )}
             >
               {
                 !responding && (

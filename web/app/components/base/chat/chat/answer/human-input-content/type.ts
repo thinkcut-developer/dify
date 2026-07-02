@@ -8,6 +8,7 @@ export type ExecutedAction = {
 
 export type UnsubmittedHumanInputContentProps = {
   formData: HumanInputFormData
+  submittedFormData?: HumanInputFilledFormData
   showEmailTip?: boolean
   isEmailDebugMode?: boolean
   showDebugModeTip?: boolean
@@ -20,6 +21,7 @@ export type SubmittedHumanInputContentProps = {
 
 export type HumanInputFormProps = {
   formData: HumanInputFormData
+  submittedFormData?: HumanInputFilledFormData
   onSubmit?: (formToken: string, data: { inputs: Record<string, string>, action: string }) => Promise<void>
 }
 
@@ -27,5 +29,6 @@ export type ContentItemProps = {
   content: string
   formInputFields: FormInputItem[]
   inputs: Record<string, string>
+  readOnly?: boolean
   onInputChange: (name: string, value: string) => void
 }

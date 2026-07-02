@@ -1,4 +1,4 @@
-import type { HumanInputFormData } from '@/types/workflow'
+import type { HumanInputFilledFormData, HumanInputFormData } from '@/types/workflow'
 import { render, screen } from '@testing-library/react'
 import { DeliveryMethodType } from '@/app/components/workflow/nodes/human-input/types'
 import HumanInputFormList from '../human-input-form-list'
@@ -13,11 +13,12 @@ vi.mock('../human-input-content/content-wrapper', () => ({
 }))
 
 vi.mock('../human-input-content/unsubmitted', () => ({
-  UnsubmittedHumanInputContent: ({ showEmailTip, isEmailDebugMode, showDebugModeTip }: { showEmailTip: boolean, isEmailDebugMode: boolean, showDebugModeTip: boolean }) => (
+  UnsubmittedHumanInputContent: ({ showEmailTip, isEmailDebugMode, showDebugModeTip, submittedFormData }: { showEmailTip: boolean, isEmailDebugMode: boolean, showDebugModeTip: boolean, submittedFormData?: HumanInputFilledFormData }) => (
     <div data-testid="unsubmitted-content">
       <span data-testid="email-tip">{showEmailTip ? 'true' : 'false'}</span>
       <span data-testid="email-debug">{isEmailDebugMode ? 'true' : 'false'}</span>
       <span data-testid="debug-tip">{showDebugModeTip ? 'true' : 'false'}</span>
+      <span data-testid="submitted-state">{submittedFormData ? submittedFormData.action_id : 'pending'}</span>
     </div>
   ),
 }))
@@ -63,6 +64,18 @@ describe('HumanInputFormList', () => {
   })
 
   describe('Delivery Methods Config', () => {
+    it('should pass matching submitted form data for the same node', () => {
+      mockGetNodeData.mockReturnValue({ data: { delivery_methods: [] } })
+      render(
+        <HumanInputFormList
+          humanInputFormDataList={[mockFormData[0]] as HumanInputFormData[]}
+          humanInputFilledFormDataList={[{ node_id: 'node1', node_title: 'Title 1', rendered_content: 'done', action_id: 'approve', action_text: 'Approve' }]}
+          getHumanInputNodeData={mockGetNodeData}
+        />,
+      )
+      expect(screen.getByTestId('submitted-state')).toHaveTextContent('approve')
+    })
+
     it('should set default tips when node data is not found', () => {
       mockGetNodeData.mockReturnValue(undefined)
       render(

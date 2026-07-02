@@ -45,6 +45,7 @@ vi.mock('../../chat', () => ({
     inputDisabled,
     questionIcon,
     answerIcon,
+    footerNotice,
     onSend,
     onRegenerate,
     switchSibling,
@@ -56,6 +57,7 @@ vi.mock('../../chat', () => ({
     inputDisabled: boolean
     questionIcon?: React.ReactNode
     answerIcon?: React.ReactNode
+    footerNotice?: React.ReactNode
     onSend: (message: string) => void
     onRegenerate: (chatItem: ChatItem, editedQuestion?: { message: string, files?: never[] }) => void
     switchSibling: (siblingMessageId: string) => void
@@ -64,6 +66,7 @@ vi.mock('../../chat', () => ({
   }) => (
     <div>
       <div>{chatNode}</div>
+      <div>{footerNotice}</div>
       {answerIcon}
       {chatList.map(item => <div key={item.id}>{item.content}</div>)}
       <div>
@@ -150,6 +153,7 @@ const createContextValue = (overrides: Partial<EmbeddedChatbotContextValue> = {}
   handleNewConversation: vi.fn(),
   handleStartChat: vi.fn(),
   handleChangeConversation: vi.fn(),
+  handleNewConversationActivated: vi.fn(),
   handleNewConversationCompleted: vi.fn(),
   chatShouldReloadKey: 'reload-key',
   isMobile: false,
@@ -197,7 +201,13 @@ describe('EmbeddedChatbot chat-wrapper', () => {
   })
 
   describe('Welcome behavior', () => {
-    it('should show opening message and suggested question for a new chat', () => {
+    it('should pass the AI disclaimer notice to the chat footer', () => {
+      render(<ChatWrapper />)
+
+      expect(screen.getByText('share.chat.aiDisclaimer')).toBeInTheDocument()
+    })
+
+    it('should show opening message and suggested question for a new chat without auto-resuming paused workflows', () => {
       const handleSwitchSibling = vi.fn()
       vi.mocked(useChat).mockReturnValue(createUseChatReturn({
         handleSwitchSibling,
@@ -225,12 +235,7 @@ describe('EmbeddedChatbot chat-wrapper', () => {
       render(<ChatWrapper />)
 
       expect(screen.getByText('How does it work?')).toBeInTheDocument()
-      expect(handleSwitchSibling).toHaveBeenCalledWith('paused-workflow', expect.objectContaining({
-        isPublicAPI: true,
-      }))
-      const resumeOptions = handleSwitchSibling.mock.calls[0]?.[1] as { onGetSuggestedQuestions: (responseItemId: string) => void }
-      resumeOptions.onGetSuggestedQuestions('resume-1')
-      expect(fetchSuggestedQuestions).toHaveBeenCalledWith('resume-1', AppSourceType.webApp, 'app-1')
+      expect(handleSwitchSibling).not.toHaveBeenCalled()
     })
 
     it('should hide or show welcome content based on chat state', () => {
@@ -520,7 +525,7 @@ describe('EmbeddedChatbot chat-wrapper', () => {
       render(<ChatWrapper />)
     })
 
-    it('should resume paused workflows when chat history is loaded', () => {
+    it('should not auto-resume paused workflows when chat history is loaded', () => {
       const handleSwitchSibling = vi.fn()
       vi.mocked(useChat).mockReturnValue(createUseChatReturn({
         handleSwitchSibling,
@@ -538,7 +543,7 @@ describe('EmbeddedChatbot chat-wrapper', () => {
         ],
       }))
       render(<ChatWrapper />)
-      expect(handleSwitchSibling).toHaveBeenCalled()
+      expect(handleSwitchSibling).not.toHaveBeenCalled()
     })
 
     it('should handle conversation completion and suggested questions in chat actions', async () => {

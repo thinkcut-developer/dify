@@ -12,15 +12,16 @@ import LogoHeader from '@/app/components/base/logo/logo-embedded-chat-header'
 import { useGlobalPublicStore } from '@/context/global-public-context'
 import useBreakpoints, { MediaType } from '@/hooks/use-breakpoints'
 import useDocumentTitle from '@/hooks/use-document-title'
+import useTheme from '@/hooks/use-theme'
 import { AppSourceType } from '@/service/share'
 import { cn } from '@/utils/classnames'
+import { isClient } from '@/utils/client'
 import {
   EmbeddedChatbotContext,
   useEmbeddedChatbotContext,
 } from './context'
 import { useEmbeddedChatbot } from './hooks'
 import { useThemeContext } from './theme/theme-context'
-import { CssTransform } from './theme/utils'
 import { isDify } from './utils'
 
 const Chatbot = () => {
@@ -31,10 +32,13 @@ const Chatbot = () => {
     appChatListDataLoading,
     chatShouldReloadKey,
     handleNewConversation,
+    handleResetConversationState,
     themeBuilder,
   } = useEmbeddedChatbotContext()
   const { t } = useTranslation()
+  const { theme } = useTheme()
   const systemFeatures = useGlobalPublicStore(s => s.systemFeatures)
+  const isDarkMode = theme === 'dark'
 
   const customConfig = appData?.custom_config
   const site = appData?.site
@@ -47,15 +51,41 @@ const Chatbot = () => {
 
   useDocumentTitle(site?.title || 'Chat')
 
+  useEffect(() => {
+    if (!isClient || window.self === window.top)
+      return
+
+    const targetOrigin = document.referrer ? new URL(document.referrer).origin : ''
+    if (!targetOrigin)
+      return
+
+    const handleParentMessage = (event: MessageEvent) => {
+      if (event.origin !== targetOrigin)
+        return
+
+      if (event.data?.type === 'dify-chatbot-reset')
+        void handleResetConversationState()
+    }
+
+    window.addEventListener('message', handleParentMessage)
+    return () => window.removeEventListener('message', handleParentMessage)
+  }, [handleResetConversationState])
+
   return (
     <div className="relative">
       <div
         className={cn(
-          'flex flex-col rounded-2xl',
-          isMobile ? 'h-[calc(100vh_-_60px)] shadow-xs' : 'h-[100vh] bg-chatbot-bg',
+          'relative flex flex-col overflow-hidden rounded-[28px] shadow-2xl',
+          isDarkMode
+            ? 'border border-cyan-900/60 bg-[linear-gradient(180deg,#0b1220_0%,#070d18_100%)] shadow-black/45'
+            : 'border border-slate-200/90 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] shadow-slate-300/45',
+          isMobile ? 'h-[calc(100vh_-_60px)]' : 'h-[100vh]',
         )}
-        style={isMobile ? Object.assign({}, CssTransform(themeBuilder?.theme?.backgroundHeaderColorStyle ?? '')) : {}}
       >
+        <div className={cn('pointer-events-none absolute inset-0', isDarkMode ? 'opacity-60' : 'opacity-90')}>
+          <div className={cn('absolute -left-24 -top-24 h-64 w-64 rounded-full blur-3xl', isDarkMode ? 'bg-cyan-500/12' : 'bg-cyan-200/60')} />
+          <div className={cn('absolute -bottom-28 -right-20 h-72 w-72 rounded-full blur-3xl', isDarkMode ? 'bg-indigo-500/14' : 'bg-indigo-200/60')} />
+        </div>
         <Header
           isMobile={isMobile}
           allowResetChat={allowResetChat}
@@ -64,7 +94,20 @@ const Chatbot = () => {
           theme={themeBuilder?.theme}
           onCreateNewChat={handleNewConversation}
         />
-        <div className={cn('flex grow flex-col overflow-y-auto', isMobile && 'm-[0.5px] !h-[calc(100vh_-_3rem)] rounded-2xl bg-chatbot-bg')}>
+        <div
+          className={cn(
+            'flex grow flex-col overflow-y-auto',
+            isDarkMode
+              ? 'bg-[linear-gradient(180deg,#0b1220_0%,#070d18_100%)]'
+              : 'bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]',
+            isMobile && cn(
+              'm-[0.5px] !h-[calc(100vh_-_3rem)] rounded-[26px]',
+              isDarkMode
+                ? 'border border-white/5 bg-[linear-gradient(180deg,#0b1220_0%,#070d18_100%)]'
+                : 'border border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]',
+            ),
+          )}
+        >
           {appChatListDataLoading && (
             <Loading type="app" />
           )}
@@ -119,7 +162,9 @@ const EmbeddedChatbotWrapper = () => {
     handleNewConversation,
     handleStartChat,
     handleChangeConversation,
+    handleNewConversationActivated,
     handleNewConversationCompleted,
+    handleResetConversationState,
     chatShouldReloadKey,
     isInstalledApp,
     allowResetChat,
@@ -155,7 +200,9 @@ const EmbeddedChatbotWrapper = () => {
       handleNewConversation,
       handleStartChat,
       handleChangeConversation,
+      handleNewConversationActivated,
       handleNewConversationCompleted,
+      handleResetConversationState,
       chatShouldReloadKey,
       isMobile,
       isInstalledApp,

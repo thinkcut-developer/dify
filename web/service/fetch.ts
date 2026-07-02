@@ -38,14 +38,31 @@ export type ResponseError = {
   status: number
 }
 
+const HUMAN_INPUT_TOAST_SUPPRESSED_CODES = new Set([
+  'human_input_form_expired',
+  'human_input_form_submitted',
+  'human_input_form_not_found',
+  'invalid_action',
+])
+
+const shouldSuppressToastForHumanInputError = (request: Request, errorData: ResponseError | null) => {
+  if (!errorData?.code)
+    return false
+
+  return request.url.includes('/form/human_input/') && HUMAN_INPUT_TOAST_SUPPRESSED_CODES.has(errorData.code)
+}
+
 const afterResponseErrorCode = (otherOptions: IOtherOptions): AfterResponseHook => {
-  return async (_request, _options, response) => {
+  return async (request, _options, response) => {
     if (!/^([23])\d{2}$/.test(String(response.status))) {
       const errorData = await response.clone()
         .json()
         .then(data => data as ResponseError)
         .catch(() => null)
-      const shouldNotifyError = response.status !== 401 && errorData && !otherOptions.silent
+      const shouldNotifyError = response.status !== 401
+        && errorData
+        && !otherOptions.silent
+        && !shouldSuppressToastForHumanInputError(request, errorData)
 
       if (shouldNotifyError)
         toast.error(errorData.message)

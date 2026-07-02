@@ -529,6 +529,21 @@ describe('ChatInputArea', () => {
       expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({ type: 'info' }))
     })
 
+    it('should ask for a document description when files exist but query is blank', async () => {
+      const user = userEvent.setup({ delay: null })
+      const onSend = vi.fn()
+      mockFileStore.files = [makeFile()]
+      render(<ChatInputArea onSend={onSend} visionConfig={mockVisionConfig} />)
+
+      await user.click(screen.getByTestId('send-button'))
+
+      expect(onSend).not.toHaveBeenCalled()
+      expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'info',
+        message: 'appAnnotation.errorMessage.fileDescriptionRequired',
+      }))
+    })
+
     it('should notify and NOT send while bot is responding', async () => {
       const user = userEvent.setup({ delay: null })
       const onSend = vi.fn()

@@ -4,6 +4,7 @@ import type {
 } from 'react'
 import type { Theme } from '../embedded-chatbot/theme/theme-context'
 import type { ChatItem } from '../types'
+import { RiUser3Line } from '@remixicon/react'
 import copy from 'copy-to-clipboard'
 import {
   memo,
@@ -16,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import Textarea from 'react-textarea-autosize'
 import { FileList } from '@/app/components/base/file-uploader'
 import { Markdown } from '@/app/components/base/markdown'
+import useTheme from '@/hooks/use-theme'
 import { cn } from '@/utils/classnames'
 import ActionButton from '../../action-button'
 import Button from '../../button'
@@ -42,6 +44,8 @@ const Question: FC<QuestionProps> = ({
   hideAvatar,
 }) => {
   const { t } = useTranslation()
+  const { theme: appTheme } = useTheme()
+  const isDarkMode = appTheme === 'dark'
 
   const {
     content,
@@ -186,9 +190,11 @@ const Question: FC<QuestionProps> = ({
           ref={contentRef}
           data-testid="question-content"
           className={cn(
-            'w-full px-4 py-3 text-sm',
-            !isEditing && 'rounded-2xl bg-background-gradient-bg-fill-chat-bubble-bg-3 text-text-primary',
-            isEditing && 'rounded-[24px] border-[3px] border-components-option-card-option-selected-border bg-components-panel-bg-blur shadow-lg',
+            'w-full px-5 py-3.5 text-sm',
+            !isEditing && (isDarkMode
+              ? 'border-white/12 rounded-[22px] border bg-[linear-gradient(135deg,#1f2a44_0%,#263161_55%,#312e81_100%)] text-slate-50 shadow-[0_14px_28px_rgba(15,23,42,0.34)] backdrop-blur-sm'
+              : 'rounded-[22px] border border-indigo-200/70 bg-[linear-gradient(135deg,#334155_0%,#3730a3_100%)] text-slate-50 shadow-[0_16px_28px_rgba(99,102,241,0.16)] backdrop-blur-sm'),
+            isEditing && 'rounded-[24px] border-[2px] border-components-option-card-option-selected-border bg-components-panel-bg-blur shadow-xl',
           )}
           style={(!isEditing && theme?.chatBubbleColorStyle) ? CssTransform(theme.chatBubbleColorStyle) : {}}
         >
@@ -203,13 +209,13 @@ const Question: FC<QuestionProps> = ({
             )
           }
           {!isEditing
-            ? <Markdown content={content} />
+            ? <Markdown className="!text-slate-50" content={content} />
             : (
                 <div className="flex flex-col gap-4">
                   <div className="max-h-[158px] overflow-y-auto overflow-x-hidden pr-1">
                     <Textarea
                       className={cn(
-                        'w-full resize-none bg-transparent p-0 leading-7 text-text-primary outline-none body-lg-regular',
+                        'w-full resize-none bg-transparent p-0 leading-7 text-slate-50 outline-none body-lg-regular',
                       )}
                       autoFocus
                       minRows={1}
@@ -242,8 +248,8 @@ const Question: FC<QuestionProps> = ({
         <div className="h-10 w-10 shrink-0">
           {
             questionIcon || (
-              <div className="h-full w-full rounded-full border-[0.5px] border-black/5">
-                <div className="i-custom-public-avatar-user h-full w-full" />
+              <div className="flex h-full w-full items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-slate-700 to-indigo-900 text-slate-100 shadow-md shadow-black/25">
+                <RiUser3Line className="h-5 w-5" />
               </div>
             )
           }

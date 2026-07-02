@@ -73,11 +73,13 @@ export type ChatProps = {
   onFeatureBarClick?: (state: boolean) => void
   noSpacing?: boolean
   inputDisabled?: boolean
+  chatInputBotName?: string
   sidebarCollapseState?: boolean
   hideAvatar?: boolean
   sendOnEnter?: boolean
   onHumanInputFormSubmit?: (formToken: string, formData: any) => Promise<void>
   getHumanInputNodeData?: (nodeID: string) => any
+  footerNotice?: ReactNode
 }
 
 const Chat: FC<ChatProps> = ({
@@ -118,11 +120,13 @@ const Chat: FC<ChatProps> = ({
   onFeatureBarClick,
   noSpacing,
   inputDisabled,
+  chatInputBotName,
   sidebarCollapseState,
   hideAvatar,
   sendOnEnter,
   onHumanInputFormSubmit,
   getHumanInputNodeData,
+  footerNotice,
 }) => {
   const { t } = useTranslation()
   const { currentLogItem, setCurrentLogItem, showPromptLogModal, setShowPromptLogModal, showAgentLogModal, setShowAgentLogModal } = useAppStore(useShallow(state => ({
@@ -355,7 +359,7 @@ const Chat: FC<ChatProps> = ({
             {
               !noChatInput && (
                 <ChatInputArea
-                  botName={appData?.site?.title || 'Bot'}
+                  botName={chatInputBotName || appData?.site?.title || 'Bot'}
                   disabled={inputDisabled}
                   showFeatureBar={showFeatureBar}
                   showFileUpload={showFileUpload}
@@ -373,6 +377,14 @@ const Chat: FC<ChatProps> = ({
                 />
               )
             }
+            {footerNotice && (
+              <div
+                data-testid="chat-footer-notice"
+                className="mt-2 px-2 text-center text-xs leading-5 text-text-tertiary"
+              >
+                {footerNotice}
+              </div>
+            )}
           </div>
         </div>
         {showPromptLogModal && !hideLogModal && (

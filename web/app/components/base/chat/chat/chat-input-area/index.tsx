@@ -24,6 +24,7 @@ import {
 } from '@/app/components/base/file-uploader/store'
 import { useToastContext } from '@/app/components/base/toast/context'
 import VoiceInput from '@/app/components/base/voice-input'
+import useTheme from '@/hooks/use-theme'
 import { TransferMethod } from '@/types/app'
 import { cn } from '@/utils/classnames'
 import { useCheckInputsForms } from '../check-input-forms-hooks'
@@ -71,6 +72,8 @@ const ChatInputArea = ({
   sendOnEnter = true,
 }: ChatInputAreaProps) => {
   const { t } = useTranslation()
+  const { theme: appTheme } = useTheme()
+  const isDarkMode = appTheme === 'dark'
   const { notify } = useToastContext()
   const {
     wrapperRef,
@@ -117,7 +120,12 @@ const ChatInputArea = ({
         return
       }
       if (!query || !query.trim()) {
-        notify({ type: 'info', message: t('errorMessage.queryRequired', { ns: 'appAnnotation' }) })
+        notify({
+          type: 'info',
+          message: files.length > 0
+            ? t('errorMessage.fileDescriptionRequired', { ns: 'appAnnotation' })
+            : t('errorMessage.queryRequired', { ns: 'appAnnotation' }),
+        })
         return
       }
       if (checkInputsForm(inputs, inputsForm)) {
@@ -201,12 +209,14 @@ const ChatInputArea = ({
     <>
       <div
         className={cn(
-          'relative z-10 overflow-hidden rounded-xl border border-components-chat-input-border bg-components-panel-bg-blur pb-[9px] shadow-md',
+          isDarkMode
+            ? 'border-white/12 relative z-10 overflow-hidden rounded-[24px] border bg-[rgba(15,23,42,0.9)] pb-[10px] shadow-[0_18px_36px_rgba(2,6,23,0.32)] backdrop-blur-xl'
+            : 'relative z-10 overflow-hidden rounded-[24px] border border-slate-200/90 bg-[rgba(255,255,255,0.92)] pb-[10px] shadow-[0_20px_36px_rgba(148,163,184,0.18)] backdrop-blur-xl',
           isDragActive && 'border border-dashed border-components-option-card-option-selected-border',
           disabled && 'pointer-events-none border-components-panel-border opacity-50 shadow-none',
         )}
       >
-        <div className="relative max-h-[158px] overflow-y-auto overflow-x-hidden px-[9px] pt-[9px]">
+        <div className="relative max-h-[168px] overflow-y-auto overflow-x-hidden px-[10px] pt-[10px]">
           <FileListInChatInput fileConfig={visionConfig!} />
           <div
             ref={wrapperRef}
@@ -222,7 +232,9 @@ const ChatInputArea = ({
               <Textarea
                 ref={ref => textareaRef.current = ref as any}
                 className={cn(
-                  'w-full resize-none bg-transparent p-1 leading-6 text-text-primary outline-none body-lg-regular',
+                  isDarkMode
+                    ? 'w-full resize-none bg-transparent p-1 leading-6 text-slate-50 outline-none body-lg-regular placeholder:text-slate-400'
+                    : 'w-full resize-none bg-transparent p-1 leading-6 text-slate-900 outline-none body-lg-regular placeholder:text-slate-400',
                 )}
                 placeholder={decode(t(readonly ? 'chat.inputDisabledPlaceholder' : 'chat.inputPlaceholder', { ns: 'common', botName }) || '')}
                 autoFocus

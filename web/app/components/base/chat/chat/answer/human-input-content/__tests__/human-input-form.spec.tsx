@@ -1,5 +1,5 @@
 import type { FormInputItem } from '@/app/components/workflow/nodes/human-input/types'
-import type { HumanInputFormData } from '@/types/workflow'
+import type { HumanInputFilledFormData, HumanInputFormData } from '@/types/workflow'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -107,6 +107,21 @@ describe('HumanInputForm', () => {
     const formDataWithoutDefaults = { ...mockFormData, resolved_default_values: undefined }
     render(<HumanInputForm formData={formDataWithoutDefaults as unknown as HumanInputFormData} />)
     expect(screen.getAllByTestId('mock-content-item')).toHaveLength(3)
+  })
+
+  it('should hide action buttons and show executed action when already submitted', () => {
+    const submittedFormData: HumanInputFilledFormData = {
+      node_id: 'node_1',
+      node_title: 'Title',
+      rendered_content: 'submitted',
+      action_id: 'action_1',
+      action_text: 'Submit',
+    }
+
+    render(<HumanInputForm formData={mockFormData} submittedFormData={submittedFormData} />)
+
+    expect(screen.queryByTestId('action-button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('executed-action')).toBeInTheDocument()
   })
 
   it('should handle unsupported input types in initializeInputs', () => {

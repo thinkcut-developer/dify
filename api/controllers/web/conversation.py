@@ -197,6 +197,35 @@ class ConversationRenameApi(WebApiResource):
             raise NotFound("Conversation Not Exists.")
 
 
+@web_ns.route("/conversations/<uuid:c_id>/variables/reset")
+class ConversationVariablesResetApi(WebApiResource):
+    @web_ns.doc("Reset Conversation Variables")
+    @web_ns.doc(description="Reset workflow conversation variables for a conversation back to their defaults.")
+    @web_ns.doc(params={"c_id": {"description": "Conversation UUID", "type": "string", "required": True}})
+    @web_ns.doc(
+        responses={
+            200: "Conversation variables reset successfully",
+            400: "Bad Request",
+            401: "Unauthorized",
+            403: "Forbidden",
+            404: "Conversation Not Found or Not a Chat App",
+            500: "Internal Server Error",
+        }
+    )
+    def post(self, app_model, end_user, c_id):
+        app_mode = AppMode.value_of(app_model.mode)
+        if app_mode not in {AppMode.CHAT, AppMode.AGENT_CHAT, AppMode.ADVANCED_CHAT}:
+            raise NotChatAppError()
+
+        conversation_id = str(c_id)
+        try:
+            ConversationService.reset_conversation_variables(app_model, conversation_id, end_user)
+        except ConversationNotExistsError:
+            raise NotFound("Conversation Not Exists.")
+
+        return ResultResponse(result="success").model_dump(mode="json")
+
+
 @web_ns.route("/conversations/<uuid:c_id>/pin")
 class ConversationPinApi(WebApiResource):
     @web_ns.doc("Pin Conversation")

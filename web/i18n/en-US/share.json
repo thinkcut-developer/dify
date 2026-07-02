@@ -1,4 +1,5 @@
 {
+  "chat.aiDisclaimer": "ThinkSuite AI can make mistakes; verify before proceeding.",
   "chat.chatFormTip": "Chat settings cannot be modified after the chat has started.",
   "chat.chatSettingsTitle": "New chat setup",
   "chat.collapse": "Collapse",
@@ -63,6 +64,7 @@
   "humanInput.expired": "Seems like this request has expired.",
   "humanInput.expiredTip": "This action has expired.",
   "humanInput.formNotFound": "Form not found.",
+  "humanInput.invalidOperation": "Invalid operation.",
   "humanInput.rateLimitExceeded": "Too many requests, please try again later.",
   "humanInput.recorded": "Your input has been recorded.",
   "humanInput.sorry": "Sorry!",

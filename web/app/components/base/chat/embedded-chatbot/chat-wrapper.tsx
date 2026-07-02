@@ -2,10 +2,10 @@ import type { FileEntity } from '../../file-uploader/types'
 import type {
   ChatConfig,
   ChatItem,
-  ChatItemInTree,
   OnSend,
 } from '../types'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import AnswerIcon from '@/app/components/base/answer-icon'
 import AppIcon from '@/app/components/base/app-icon'
 import SuggestedQuestions from '@/app/components/base/chat/chat/answer/suggested-questions'
@@ -13,6 +13,7 @@ import InputsForm from '@/app/components/base/chat/embedded-chatbot/inputs-form'
 import LogoAvatar from '@/app/components/base/logo/logo-embedded-chat-avatar'
 import { Markdown } from '@/app/components/base/markdown'
 import { InputVarType } from '@/app/components/workflow/types'
+import useTheme from '@/hooks/use-theme'
 import {
   AppSourceType,
   fetchSuggestedQuestions,
@@ -31,6 +32,9 @@ import { useEmbeddedChatbotContext } from './context'
 import { isDify } from './utils'
 
 const ChatWrapper = () => {
+  const { t } = useTranslation()
+  const { theme } = useTheme()
+  const isDarkMode = theme === 'dark'
   const {
     appData,
     appParams,
@@ -41,6 +45,7 @@ const ChatWrapper = () => {
     inputsForms,
     newConversationInputs,
     newConversationInputsRef,
+    handleNewConversationActivated,
     handleNewConversationCompleted,
     isMobile,
     isInstalledApp,
@@ -142,40 +147,6 @@ const ChatWrapper = () => {
     setIsResponding(respondingState)
   }, [respondingState, setIsResponding])
 
-  // Resume paused workflows when chat history is loaded
-  useEffect(() => {
-    if (!appPrevChatList || appPrevChatList.length === 0)
-      return
-
-    // Find the last answer item with workflow_run_id that needs resumption (DFS - find deepest first)
-    let lastPausedNode: ChatItemInTree | undefined
-    const findLastPausedWorkflow = (nodes: ChatItemInTree[]) => {
-      nodes.forEach((node) => {
-        // DFS: recurse to children first
-        if (node.children && node.children.length > 0)
-          findLastPausedWorkflow(node.children)
-
-        // Track the last node with humanInputFormDataList
-        if (node.isAnswer && node.workflow_run_id && node.humanInputFormDataList && node.humanInputFormDataList.length > 0)
-          lastPausedNode = node
-      })
-    }
-
-    findLastPausedWorkflow(appPrevChatList)
-
-    // Only resume the last paused workflow
-    if (lastPausedNode) {
-      handleSwitchSibling(
-        lastPausedNode.id,
-        {
-          onGetSuggestedQuestions: responseItemId => fetchSuggestedQuestions(responseItemId, appSourceType, appId),
-          onConversationComplete: currentConversationId ? undefined : handleNewConversationCompleted,
-          isPublicAPI: appSourceType === AppSourceType.webApp,
-        },
-      )
-    }
-  }, [])
-
   const doSend: OnSend = useCallback((message, files, isRegenerate = false, parentAnswer: ChatItem | null = null) => {
     const data: any = {
       query: message,
@@ -189,11 +160,12 @@ const ChatWrapper = () => {
       data,
       {
         onGetSuggestedQuestions: responseItemId => fetchSuggestedQuestions(responseItemId, appSourceType, appId),
+        onConversationIdAssigned: currentConversationId ? undefined : handleNewConversationActivated,
         onConversationComplete: currentConversationId ? undefined : handleNewConversationCompleted,
         isPublicAPI: appSourceType === AppSourceType.webApp,
       },
     )
-  }, [currentConversationId, currentConversationInputs, newConversationInputs, chatList, handleSend, appSourceType, appId, handleNewConversationCompleted])
+  }, [currentConversationId, currentConversationInputs, newConversationInputs, chatList, handleSend, appSourceType, appId, handleNewConversationActivated, handleNewConversationCompleted])
 
   const doRegenerate = useCallback((chatItem: ChatItem, editedQuestion?: { message: string, files?: FileEntity[] }) => {
     const question = editedQuestion ? chatItem : chatList.find(item => item.id === chatItem.parentMessageId)!
@@ -204,10 +176,11 @@ const ChatWrapper = () => {
   const doSwitchSibling = useCallback((siblingMessageId: string) => {
     handleSwitchSibling(siblingMessageId, {
       onGetSuggestedQuestions: responseItemId => fetchSuggestedQuestions(responseItemId, appSourceType, appId),
+      onConversationIdAssigned: currentConversationId ? undefined : handleNewConversationActivated,
       onConversationComplete: currentConversationId ? undefined : handleNewConversationCompleted,
       isPublicAPI: appSourceType === AppSourceType.webApp,
     })
-  }, [handleSwitchSibling, appSourceType, appId, currentConversationId, handleNewConversationCompleted])
+  }, [handleSwitchSibling, appSourceType, appId, currentConversationId, handleNewConversationActivated, handleNewConversationCompleted])
 
   const messageList = useMemo(() => {
     if (currentConversationId || chatList.length > 1)
@@ -262,8 +235,15 @@ const ChatWrapper = () => {
               background={appData?.site.icon_background}
               imageUrl={appData?.site.icon_url}
             />
-            <div className="grow rounded-2xl bg-chat-bubble-bg px-4 py-3 text-text-primary body-lg-regular">
-              <Markdown content={welcomeMessage.content} />
+            <div
+              className={cn(
+                'grow rounded-[22px] px-5 py-3.5 backdrop-blur-sm body-lg-regular',
+                isDarkMode
+                  ? 'border border-white/10 bg-[linear-gradient(180deg,rgba(17,24,39,0.96)_0%,rgba(15,23,42,0.92)_100%)] text-slate-50 shadow-[0_16px_30px_rgba(2,6,23,0.28)]'
+                  : 'border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,250,252,0.96)_100%)] text-slate-900 shadow-[0_18px_32px_rgba(148,163,184,0.22)]',
+              )}
+            >
+              <Markdown className={cn(isDarkMode ? '!text-slate-50' : '!text-slate-900')} content={welcomeMessage.content} />
               <SuggestedQuestions item={welcomeMessage} />
             </div>
           </div>
@@ -280,7 +260,7 @@ const ChatWrapper = () => {
           imageUrl={appData?.site.icon_url}
         />
         <div className="max-w-[768px] px-4">
-          <Markdown className="!text-text-tertiary !body-2xl-regular" content={welcomeMessage.content} />
+          <Markdown className="!text-slate-200 !body-2xl-regular" content={welcomeMessage.content} />
         </div>
       </div>
     )
@@ -306,9 +286,21 @@ const ChatWrapper = () => {
       config={appConfig}
       chatList={messageList}
       isResponding={respondingState}
-      chatContainerInnerClassName={cn('mx-auto w-full max-w-full px-4', messageList.length && 'pt-4')}
-      chatFooterClassName={cn('pb-4', !isMobile && 'rounded-b-2xl')}
-      chatFooterInnerClassName={cn('mx-auto w-full max-w-full px-4', isMobile && 'px-2')}
+      chatContainerClassName={isDarkMode
+        ? 'bg-[linear-gradient(180deg,#0b1220_0%,#070d18_100%)]'
+        : 'bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]'}
+      chatContainerInnerClassName={cn('mx-auto w-full max-w-full px-4 pb-4', messageList.length && 'pt-4')}
+      chatFooterClassName={cn(
+        isDarkMode
+          ? '!bg-[linear-gradient(180deg,rgba(11,18,32,0.02)_0%,rgba(7,13,24,0.82)_28%,rgba(7,13,24,0.98)_100%)]'
+          : '!bg-[linear-gradient(180deg,rgba(248,250,252,0.02)_0%,rgba(238,242,255,0.82)_28%,rgba(238,242,255,0.98)_100%)]',
+        'px-2 pb-5 pt-3',
+        !isMobile && 'rounded-b-[28px]',
+      )}
+      chatFooterInnerClassName={cn(
+        'mx-auto w-full max-w-full',
+        isMobile ? 'px-2 pr-2' : 'px-1 pr-0',
+      )}
       onSend={doSend}
       inputs={currentConversationId ? currentConversationInputs as any : newConversationInputs}
       inputsForm={inputsForms}
@@ -330,7 +322,19 @@ const ChatWrapper = () => {
       themeBuilder={themeBuilder}
       switchSibling={doSwitchSibling}
       inputDisabled={inputDisabled}
+      chatInputBotName="ThinkAI"
       sendOnEnter={sendOnEnter}
+      footerNotice={(
+        <div className={cn(
+          isDarkMode
+            ? 'bg-slate-900/78 rounded-2xl border border-white/10 px-3 py-1.5 text-left text-xs leading-5 text-slate-300 shadow-[0_12px_26px_rgba(2,6,23,0.26)] backdrop-blur-md'
+            : 'bg-white/86 rounded-2xl border border-slate-200/90 px-3 py-1.5 text-left text-xs leading-5 text-slate-600 shadow-[0_12px_26px_rgba(148,163,184,0.18)] backdrop-blur-md',
+          isMobile ? 'mr-0 max-w-full' : 'mr-[3.75rem] max-w-[calc(100%-3.75rem)]',
+        )}
+        >
+          {t('chat.aiDisclaimer', { ns: 'share' })}
+        </div>
+      )}
       questionIcon={
         initUserVariables?.avatar_url
           ? (

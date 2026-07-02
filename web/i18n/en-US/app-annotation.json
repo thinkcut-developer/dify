@@ -36,6 +36,7 @@
   "editModal.yourQuery": "Your Query",
   "embeddingModelSwitchTip": "Annotation text vectorization model, switching models will be re-embedded, resulting in additional costs.",
   "errorMessage.answerRequired": "Answer is required",
+  "errorMessage.fileDescriptionRequired": "Please write the document description in the message.",
   "errorMessage.queryRequired": "Question is required",
   "hitHistoryTable.match": "Match",
   "hitHistoryTable.query": "Query",

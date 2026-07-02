@@ -34,7 +34,9 @@ export type EmbeddedChatbotContextValue = {
   handleNewConversation: () => void
   handleStartChat: (callback?: any) => void
   handleChangeConversation: (conversationId: string) => void
+  handleNewConversationActivated: (conversationId: string) => void
   handleNewConversationCompleted: (newConversationId: string) => void
+  handleResetConversationState: () => Promise<void>
   chatShouldReloadKey: string
   isMobile: boolean
   isInstalledApp: boolean
@@ -74,7 +76,9 @@ export const EmbeddedChatbotContext = createContext<EmbeddedChatbotContextValue>
   handleNewConversation: noop,
   handleStartChat: noop,
   handleChangeConversation: noop,
+  handleNewConversationActivated: noop,
   handleNewConversationCompleted: noop,
+  handleResetConversationState: async () => {},
   chatShouldReloadKey: '',
   isMobile: false,
   appSourceType: AppSourceType.webApp,

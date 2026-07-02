@@ -5,14 +5,14 @@ export class Theme {
   public chatColorTheme: string | null
   public chatColorThemeInverted: boolean
 
-  public primaryColor = '#1C64F2'
-  public backgroundHeaderColorStyle = 'backgroundImage: linear-gradient(to right, #2563eb, #0ea5e9)'
-  public headerBorderBottomStyle = ''
-  public colorFontOnHeaderStyle = 'color: white'
+  public primaryColor = '#22D3EE'
+  public backgroundHeaderColorStyle = 'background: linear-gradient(135deg, rgba(10, 14, 28, 0.92) 0%, rgba(30, 27, 75, 0.9) 45%, rgba(15, 118, 110, 0.86) 100%)'
+  public headerBorderBottomStyle = 'borderBottom: 1px solid rgba(255, 255, 255, 0.12)'
+  public colorFontOnHeaderStyle = 'color: #E5E7EB'
   public colorPathOnHeader = 'text-text-primary-on-surface'
-  public backgroundButtonDefaultColorStyle = 'backgroundColor: #1C64F2'
-  public roundedBackgroundColorStyle = 'backgroundColor: rgb(245 248 255)'
-  public chatBubbleColorStyle = ''
+  public backgroundButtonDefaultColorStyle = 'background: linear-gradient(135deg, #1D4ED8 0%, #0EA5E9 100%); color: #FFFFFF;'
+  public roundedBackgroundColorStyle = 'backgroundColor: rgba(148, 163, 184, 0.12)'
+  public chatBubbleColorStyle = 'background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(30, 27, 75, 0.86) 100%); border: 1px solid rgba(34, 211, 238, 0.16)'
 
   constructor(chatColorTheme: string | null = null, chatColorThemeInverted = false) {
     this.chatColorTheme = chatColorTheme
@@ -24,10 +24,10 @@ export class Theme {
   private configCustomColor() {
     if (this.chatColorTheme !== null && this.chatColorTheme !== '') {
       this.primaryColor = this.chatColorTheme ?? '#1C64F2'
-      this.backgroundHeaderColorStyle = `backgroundColor: ${this.primaryColor}`
-      this.backgroundButtonDefaultColorStyle = `backgroundColor: ${this.primaryColor}; color: ${this.colorFontOnHeaderStyle};`
-      this.roundedBackgroundColorStyle = `backgroundColor: ${hexToRGBA(this.primaryColor, 0.05)}`
-      this.chatBubbleColorStyle = `backgroundColor: ${hexToRGBA(this.primaryColor, 0.15)}`
+      this.backgroundHeaderColorStyle = `background: linear-gradient(135deg, ${hexToRGBA(this.primaryColor, 0.85)} 0%, ${hexToRGBA(this.primaryColor, 0.55)} 100%); backdropFilter: blur(16px)`
+      this.backgroundButtonDefaultColorStyle = `background: linear-gradient(135deg, ${hexToRGBA(this.primaryColor, 0.95)} 0%, ${hexToRGBA(this.primaryColor, 0.75)} 100%); color: #FFFFFF;`
+      this.roundedBackgroundColorStyle = `backgroundColor: ${hexToRGBA(this.primaryColor, 0.08)}`
+      this.chatBubbleColorStyle = `background: linear-gradient(135deg, ${hexToRGBA(this.primaryColor, 0.22)} 0%, ${hexToRGBA(this.primaryColor, 0.12)} 100%); border: 1px solid ${hexToRGBA(this.primaryColor, 0.2)}`
     }
   }
 

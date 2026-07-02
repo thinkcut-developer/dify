@@ -8,6 +8,7 @@ const ContentItem = ({
   content,
   formInputFields,
   inputs,
+  readOnly = false,
   onInputChange,
 }: ContentItemProps) => {
   const isInputField = (field: string) => {
@@ -44,6 +45,7 @@ const ContentItem = ({
         <Textarea
           className="h-[104px] sm:text-xs"
           value={inputs[fieldName]}
+          disabled={readOnly}
           onChange={(e) => { onInputChange(fieldName, e.target.value) }}
           data-testid="content-item-textarea"
         />

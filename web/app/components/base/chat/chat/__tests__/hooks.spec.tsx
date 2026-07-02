@@ -327,6 +327,23 @@ describe('useChat', () => {
       expect(result.current.chatList[1].id).toBe('m-1')
     })
 
+    it('should recover responding state when ssePost fails before workflow starts', async () => {
+      vi.mocked(ssePost).mockImplementation(() => {
+        throw new Error('network down')
+      })
+
+      const { result } = renderHook(() => useChat())
+
+      let sendResult: boolean | void = true
+      await act(async () => {
+        sendResult = await result.current.handleSend('test-url', { query: 'hello' }, {})
+      })
+
+      expect(sendResult).toBe(false)
+      expect(result.current.isResponding).toBe(false)
+      expect(result.current.chatList).toEqual([])
+    })
+
     it('should handle onThought and different workflow events', async () => {
       let callbacks: HookCallbacks
 
@@ -429,7 +446,7 @@ describe('useChat', () => {
       })
 
       const lastResponse = result.current.chatList[1]
-      expect(lastResponse.humanInputFormDataList).toHaveLength(0) // Removed when filled
+      expect(lastResponse.humanInputFormDataList).toHaveLength(2)
       expect(lastResponse.humanInputFilledFormDataList).toHaveLength(2)
       expect(sseGet).toHaveBeenCalled() // from workflowPaused
       expect(lastResponse.annotation?.id).toBe('anno-1')
@@ -977,7 +994,7 @@ describe('useChat', () => {
       expect(lastResponse.workflowProcess?.tracing?.length).toBeGreaterThan(0)
       expect(lastResponse.workflowProcess?.status).toBe('paused')
       expect(lastResponse.humanInputFilledFormDataList).toHaveLength(1)
-      expect(lastResponse.humanInputFormDataList).toHaveLength(0)
+      expect(lastResponse.humanInputFormDataList).toHaveLength(1)
       expect(lastResponse.content).toBe('replaced resume')
     })
 
@@ -1012,6 +1029,54 @@ describe('useChat', () => {
 
       const lastResponse = result.current.chatList[1]
       expect(lastResponse.content).toBe('initial append')
+    })
+
+    it('should keep updating the resumed node when workflow events switch to a new message id', async () => {
+      let callbacks: HookCallbacks
+      vi.mocked(sseGet).mockImplementation(async (_url, _params, options) => {
+        callbacks = options as HookCallbacks
+      })
+
+      const onGetSuggestedQuestions = vi.fn().mockResolvedValue({ data: [] })
+      const prevChatTree = [{
+        id: 'q-1',
+        content: 'query',
+        isAnswer: false,
+        children: [{
+          id: 'm-old',
+          content: 'initial',
+          isAnswer: true,
+          siblingIndex: 0,
+          humanInputFormDataList: [{ node_id: 'approval-node' }],
+        }],
+      }]
+
+      const { result } = renderHook(() => useChat({
+        suggested_questions_after_answer: { enabled: true },
+      } as ChatConfig, undefined, prevChatTree as ChatItemInTree[]))
+
+      act(() => {
+        result.current.handleResume('m-old', 'wr-1', {
+          isPublicAPI: true,
+          onGetSuggestedQuestions,
+        })
+      })
+
+      act(() => {
+        callbacks.onData(' approved', true, { messageId: 'm-new', conversationId: 'c-1', taskId: 't-1' })
+        callbacks.onHumanInputFormFilled({ data: { node_id: 'approval-node', status: 'approved' } })
+        callbacks.onMessageReplace({ answer: 'approval completed' })
+      })
+
+      await act(async () => {
+        await callbacks.onCompleted()
+      })
+
+      const lastResponse = result.current.chatList[result.current.chatList.length - 1]
+      expect(lastResponse.id).toBe('m-new')
+      expect(lastResponse.content).toBe('approval completed')
+      expect(lastResponse.humanInputFilledFormDataList).toEqual([{ node_id: 'approval-node', status: 'approved' }])
+      expect(onGetSuggestedQuestions).toHaveBeenCalledWith('m-new', expect.any(Function))
     })
 
     it('should stop resume completion flow early when hasError is true', async () => {
@@ -2286,7 +2351,7 @@ describe('useChat', () => {
     })
 
     const lastResponse = result.current.chatList[1]
-    expect(lastResponse.humanInputFormDataList).toHaveLength(0)
+    expect(lastResponse.humanInputFormDataList).toHaveLength(1)
     expect(lastResponse.humanInputFilledFormDataList).toHaveLength(1)
   })
 

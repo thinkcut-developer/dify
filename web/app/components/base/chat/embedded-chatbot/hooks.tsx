@@ -1,4 +1,5 @@
 /* eslint-disable ts/no-explicit-any */
+import type { ExtraContent } from '../chat/type'
 import type {
   ChatConfig,
   ChatItem,
@@ -10,6 +11,7 @@ import type {
   AppData,
   ConversationItem,
 } from '@/models/share'
+import type { HumanInputFilledFormData, HumanInputFormData } from '@/types/workflow'
 import { useLocalStorageState } from 'ahooks'
 import { noop } from 'es-toolkit/function'
 import { produce } from 'immer'
@@ -26,7 +28,7 @@ import { addFileInfos, sortAgentSorts } from '@/app/components/tools/utils'
 import { InputVarType } from '@/app/components/workflow/types'
 import { useWebAppStore } from '@/context/web-app-context'
 import { changeLanguage } from '@/i18n-config/client'
-import { AppSourceType, updateFeedback } from '@/service/share'
+import { AppSourceType, resetConversationVariables, updateFeedback } from '@/service/share'
 import {
   useInvalidateShareConversations,
   useShareChatList,
@@ -47,10 +49,27 @@ function getFormattedChatList(messages: any[]) {
       id: `question-${item.id}`,
       content: item.query,
       isAnswer: false,
-      message_files: getProcessedFilesFromResponse(questionFiles.map((item: any) => ({ ...item, related_id: item.id }))),
+      message_files: getProcessedFilesFromResponse(questionFiles.map((item: any) => ({ ...item, related_id: item.id, upload_file_id: item.upload_file_id }))),
       parentMessageId: item.parent_message_id || undefined,
     })
     const answerFiles = item.message_files?.filter((file: any) => file.belongs_to === 'assistant') || []
+    const humanInputFormDataList: HumanInputFormData[] = []
+    const humanInputFilledFormDataList: HumanInputFilledFormData[] = []
+    let workflowRunId = ''
+    if (item.status === 'paused') {
+      item.extra_contents?.forEach((content: ExtraContent) => {
+        if (content.type === 'human_input' && !content.submitted) {
+          humanInputFormDataList.push(content.form_definition)
+          workflowRunId = content.workflow_run_id
+        }
+      })
+    }
+    else if (item.status === 'normal') {
+      item.extra_contents?.forEach((content: ExtraContent) => {
+        if (content.type === 'human_input' && content.submitted)
+          humanInputFilledFormDataList.push(content.form_submission_data)
+      })
+    }
     newChatList.push({
       id: item.id,
       content: item.answer,
@@ -58,8 +77,11 @@ function getFormattedChatList(messages: any[]) {
       feedback: item.feedback,
       isAnswer: true,
       citation: item.retriever_resources,
-      message_files: getProcessedFilesFromResponse(answerFiles.map((item: any) => ({ ...item, related_id: item.id }))),
+      message_files: getProcessedFilesFromResponse(answerFiles.map((item: any) => ({ ...item, related_id: item.id, upload_file_id: item.upload_file_id }))),
       parentMessageId: `question-${item.id}`,
+      humanInputFormDataList,
+      humanInputFilledFormDataList,
+      workflow_run_id: workflowRunId,
     })
   })
   return newChatList
@@ -142,6 +164,33 @@ export const useEmbeddedChatbot = (appSourceType: AppSourceType, tryAppId?: stri
       return newInfo
     })
   }, [setConversationIdInfo])
+  const clearCurrentConversationIdInfo = useCallback(() => {
+    if (!appId)
+      return
+
+    setConversationIdInfo((prev) => {
+      const newInfo = { ...prev }
+      const appConversationInfo = newInfo[appId]
+
+      if (!appConversationInfo)
+        return newInfo
+
+      if (typeof appConversationInfo === 'string') {
+        delete newInfo[appId]
+        return newInfo
+      }
+
+      const nextAppConversationInfo = { ...appConversationInfo }
+      delete nextAppConversationInfo[userId || 'DEFAULT']
+
+      if (!Object.keys(nextAppConversationInfo).length)
+        delete newInfo[appId]
+      else
+        newInfo[appId] = nextAppConversationInfo
+
+      return newInfo
+    })
+  }, [appId, setConversationIdInfo, userId])
   const allowResetChat = !conversationId
   const currentConversationId = useMemo(() => conversationIdInfo?.[appId || '']?.[userId || 'DEFAULT'] || conversationId || '', [appId, conversationIdInfo, userId, conversationId])
   const handleConversationIdInfoChange = useCallback((changeConversationId: string) => {
@@ -443,6 +492,39 @@ export const useEmbeddedChatbot = (appSourceType: AppSourceType, tryAppId?: stri
     setClearChatList(true)
   }, [isTryApp, setShowNewConversationItemInList, handleNewConversationInputsChange, setClearChatList])
 
+  const handleResetConversationState = useCallback(async () => {
+    currentChatInstanceRef.current.handleStop()
+    const conversationIdToReset = currentConversationId
+
+    if (conversationIdToReset) {
+      try {
+        await resetConversationVariables(appSourceType, appId, conversationIdToReset)
+      }
+      catch {
+        // If reset fails, we still reset local state to avoid leaving the UI stuck.
+      }
+    }
+
+    setNewConversationId('')
+    setShowNewConversationItemInList(true)
+    clearCurrentConversationIdInfo()
+    handleNewConversationInputsChange(await getProcessedInputsFromUrlParams())
+    setClearChatList(true)
+  }, [
+    appId,
+    appSourceType,
+    clearCurrentConversationIdInfo,
+    currentConversationId,
+    handleNewConversationInputsChange,
+    setClearChatList,
+  ])
+
+  const handleNewConversationActivated = useCallback((activatedConversationId: string) => {
+    setNewConversationId(activatedConversationId)
+    handleConversationIdInfoChange(activatedConversationId)
+    setShowNewConversationItemInList(false)
+  }, [handleConversationIdInfoChange])
+
   const handleNewConversationCompleted = useCallback((newConversationId: string) => {
     setNewConversationId(newConversationId)
     handleConversationIdInfoChange(newConversationId)
@@ -483,7 +565,9 @@ export const useEmbeddedChatbot = (appSourceType: AppSourceType, tryAppId?: stri
     handleNewConversation,
     handleStartChat,
     handleChangeConversation,
+    handleNewConversationActivated,
     handleNewConversationCompleted,
+    handleResetConversationState,
     newConversationId,
     chatShouldReloadKey,
     handleFeedback,

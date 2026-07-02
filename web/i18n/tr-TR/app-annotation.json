@@ -36,6 +36,7 @@
   "editModal.yourQuery": "Senin Sorgun",
   "embeddingModelSwitchTip": "Ek açıklama metin vektörleştirme modeli, model değiştirmek yeniden yerleştirilecek ve ek maliyetlere yol açacaktır.",
   "errorMessage.answerRequired": "Cevap gerekli",
+  "errorMessage.fileDescriptionRequired": "Belge açıklamasını mesaja yazın.",
   "errorMessage.queryRequired": "Soru gerekli",
   "hitHistoryTable.match": "Eşleşme",
   "hitHistoryTable.query": "Sorgu",

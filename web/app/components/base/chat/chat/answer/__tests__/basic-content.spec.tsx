@@ -110,4 +110,37 @@ describe('BasicContent', () => {
     const markdown = screen.getByTestId('basic-content-markdown')
     expect(markdown).toHaveAttribute('data-content', '12345')
   })
+
+  it('converts a standalone image url into markdown image syntax', () => {
+    const itemWithImageUrl = {
+      ...mockItem,
+      content: 'https://example.com/profile.jpg',
+    }
+
+    render(<BasicContent item={itemWithImageUrl as ChatItem} />)
+
+    expect(screen.getByTestId('basic-content-markdown')).toHaveAttribute('data-content', '![](https://example.com/profile.jpg)')
+  })
+
+  it('converts labeled image url lines into label plus markdown image syntax', () => {
+    const itemWithLabeledImageUrl = {
+      ...mockItem,
+      content: 'Profil Fotograf:\nhttps://example.com/profile.jpg',
+    }
+
+    render(<BasicContent item={itemWithLabeledImageUrl as ChatItem} />)
+
+    expect(screen.getByTestId('basic-content-markdown')).toHaveAttribute('data-content', 'Profil Fotograf:\n![](https://example.com/profile.jpg)')
+  })
+
+  it('converts single-line label and image url content into an embedded image block', () => {
+    const itemWithInlineLabeledImageUrl = {
+      ...mockItem,
+      content: 'Vesikalik Fotograf: https://example.com/profile.jpg',
+    }
+
+    render(<BasicContent item={itemWithInlineLabeledImageUrl as ChatItem} />)
+
+    expect(screen.getByTestId('basic-content-markdown')).toHaveAttribute('data-content', 'Vesikalik Fotograf:\n\n![](https://example.com/profile.jpg)')
+  })
 })

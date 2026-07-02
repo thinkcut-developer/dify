@@ -5,6 +5,7 @@ import Tips from './tips'
 
 export const UnsubmittedHumanInputContent = ({
   formData,
+  submittedFormData,
   showEmailTip = false,
   isEmailDebugMode = false,
   showDebugModeTip = false,
@@ -17,10 +18,11 @@ export const UnsubmittedHumanInputContent = ({
       {/* Form */}
       <HumanInputForm
         formData={formData}
+        submittedFormData={submittedFormData}
         onSubmit={onSubmit}
       />
       {/* Tips */}
-      {(showEmailTip || showDebugModeTip) && (
+      {!submittedFormData && (showEmailTip || showDebugModeTip) && (
         <Tips
           showEmailTip={showEmailTip}
           isEmailDebugMode={isEmailDebugMode}
@@ -28,7 +30,7 @@ export const UnsubmittedHumanInputContent = ({
         />
       )}
       {/* Expiration Time */}
-      {typeof expiration_time === 'number' && (
+      {!submittedFormData && typeof expiration_time === 'number' && (
         <ExpirationTime expirationTime={expiration_time * 1000} />
       )}
     </>

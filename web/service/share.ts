@@ -126,6 +126,10 @@ export const delConversation = async (appSourceType: AppSourceType, installedApp
   return getAction('del', appSourceType)(getUrl(`conversations/${id}`, appSourceType, installedAppId))
 }
 
+export const resetConversationVariables = async (appSourceType: AppSourceType, installedAppId = '', id: string) => {
+  return getAction('post', appSourceType)(getUrl(`conversations/${id}/variables/reset`, appSourceType, installedAppId))
+}
+
 export const renameConversation = async (appSourceType: AppSourceType, installedAppId = '', id: string, name: string) => {
   return getAction('post', appSourceType)(getUrl(`conversations/${id}/name`, appSourceType, installedAppId), { body: { name } })
 }

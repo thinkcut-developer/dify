@@ -48,6 +48,7 @@ type GetAbortController = (abortController: AbortController) => void
 type SendCallback = {
   onGetConversationMessages?: (conversationId: string, getAbortController: GetAbortController) => Promise<any>
   onGetSuggestedQuestions?: (responseItemId: string, getAbortController: GetAbortController) => Promise<any>
+  onConversationIdAssigned?: (conversationId: string) => void
   onConversationComplete?: (conversationId: string) => void
   isPublicAPI?: boolean
 }
@@ -183,6 +184,32 @@ export const useChat = (
     chatTreeRef.current = nextState
   }, [produceChatTreeNode])
 
+  const removeChatTreeNode = useCallback((targetId: string) => {
+    const nextState = produce(chatTreeRef.current, (draft) => {
+      const queue: ChatItemInTree[] = [...draft]
+      while (queue.length > 0) {
+        const current = queue.shift()!
+        if (!current.children?.length)
+          continue
+
+        const targetIndex = current.children.findIndex(item => item.id === targetId)
+        if (targetIndex > -1) {
+          current.children.splice(targetIndex, 1)
+          return
+        }
+
+        queue.push(...current.children)
+      }
+
+      const rootIndex = draft.findIndex(item => item.id === targetId)
+      if (rootIndex > -1)
+        draft.splice(rootIndex, 1)
+    })
+
+    setChatTree(nextState)
+    chatTreeRef.current = nextState
+  }, [])
+
   const handleResponding = useCallback((isResponding: boolean) => {
     setIsResponding(isResponding)
     isRespondingRef.current = isResponding
@@ -236,15 +263,40 @@ export const useChat = (
   }, [params.token, params.appId, pathname])
 
   const handleResume = useCallback(async (
-    messageId: string,
+    initialMessageId: string,
     workflowRunId: string,
     {
       onGetSuggestedQuestions,
+      onConversationIdAssigned,
       onConversationComplete,
       isPublicAPI,
     }: SendCallback,
   ) => {
     const getOrCreatePlayer = createAudioPlayerManager()
+    let currentMessageId = initialMessageId
+
+    const updateResumeNode = (update: (node: ChatItemInTree) => void) => {
+      updateChatTreeNode(currentMessageId, update)
+    }
+
+    const syncResumeIdentifiers = (nextMessageId?: string, nextConversationId?: string) => {
+      if (!nextMessageId && !nextConversationId)
+        return
+
+      updateResumeNode((responseItem) => {
+        if (nextConversationId)
+          responseItem.conversationId = nextConversationId
+
+        if (nextMessageId && responseItem.id !== nextMessageId) {
+          responseItem.id = nextMessageId
+          currentMessageId = nextMessageId
+        }
+      })
+
+      if (nextMessageId)
+        setTargetMessageId(nextMessageId)
+    }
+
     // Re-subscribe to workflow events for the specific message
     const url = `/workflow/${workflowRunId}/events?include_state_snapshot=true`
 
@@ -253,8 +305,10 @@ export const useChat = (
       getAbortController: (abortController) => {
         workflowEventsAbortControllerRef.current = abortController
       },
-      onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId, messageId, taskId }: IOnDataMoreInfo) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+      onData: (message: string, isFirstMessage: boolean, { conversationId: newConversationId, messageId: nextMessageId, taskId }: IOnDataMoreInfo) => {
+        syncResumeIdentifiers(nextMessageId, newConversationId)
+
+        updateResumeNode((responseItem) => {
           const isAgentMode = responseItem.agent_thoughts && responseItem.agent_thoughts.length > 0
           if (!isAgentMode) {
             responseItem.content = responseItem.content + message
@@ -264,12 +318,12 @@ export const useChat = (
             if (lastThought)
               lastThought.thought = lastThought.thought + message
           }
-          if (messageId)
-            responseItem.id = messageId
         })
 
-        if (isFirstMessage && newConversationId)
+        if (isFirstMessage && newConversationId) {
           conversationIdRef.current = newConversationId
+          onConversationIdAssigned?.(newConversationId)
+        }
 
         if (taskId)
           taskIdRef.current = taskId
@@ -286,7 +340,7 @@ export const useChat = (
         if (config?.suggested_questions_after_answer?.enabled && !hasStopRespondedRef.current && onGetSuggestedQuestions) {
           try {
             const { data }: any = await onGetSuggestedQuestions(
-              messageId,
+              currentMessageId,
               newAbortController => suggestedQuestionsAbortControllerRef.current = newAbortController,
             )
             setSuggestedQuestions(data)
@@ -320,7 +374,7 @@ export const useChat = (
           url: baseFile?.url || (file as { url?: string }).url,
           size: baseFile?.size ?? 0, // Generated files don't have a known size
         }
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]
           if (lastThought) {
             responseItem.agent_thoughts!.at(-1)!.message_files = [...(lastThought as any).message_files, convertedFile]
@@ -332,12 +386,9 @@ export const useChat = (
         })
       },
       onThought(thought) {
-        updateChatTreeNode(messageId, (responseItem) => {
-          if (thought.message_id)
-            responseItem.id = thought.message_id
-          if (thought.conversation_id)
-            responseItem.conversationId = thought.conversation_id
+        syncResumeIdentifiers(thought.message_id, thought.conversation_id)
 
+        updateResumeNode((responseItem) => {
           if (!responseItem.agent_thoughts)
             responseItem.agent_thoughts = []
 
@@ -358,7 +409,9 @@ export const useChat = (
         })
       },
       onMessageEnd: (messageEnd) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        syncResumeIdentifiers(messageEnd.id)
+
+        updateResumeNode((responseItem) => {
           if (messageEnd.metadata?.annotation_reply) {
             responseItem.annotation = ({
               id: messageEnd.metadata.annotation_reply.id,
@@ -372,7 +425,7 @@ export const useChat = (
         })
       },
       onMessageReplace: (messageReplace) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           responseItem.content = messageReplace.answer
         })
       },
@@ -382,7 +435,7 @@ export const useChat = (
       onWorkflowStarted: ({ workflow_run_id, task_id }) => {
         handleResponding(true)
         hasStopRespondedRef.current = false
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (responseItem.workflowProcess && responseItem.workflowProcess.tracing.length > 0) {
             responseItem.workflowProcess.status = WorkflowRunningStatus.Running
           }
@@ -397,13 +450,13 @@ export const useChat = (
         })
       },
       onWorkflowFinished: ({ data: workflowFinishedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (responseItem.workflowProcess)
             responseItem.workflowProcess.status = workflowFinishedData.status as WorkflowRunningStatus
         })
       },
       onIterationStart: ({ data: iterationStartedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess)
             return
           if (!responseItem.workflowProcess.tracing)
@@ -415,7 +468,7 @@ export const useChat = (
         })
       },
       onIterationFinish: ({ data: iterationFinishedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess?.tracing)
             return
           const tracing = responseItem.workflowProcess.tracing
@@ -431,7 +484,7 @@ export const useChat = (
         })
       },
       onNodeStarted: ({ data: nodeStartedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess)
             return
           if (!responseItem.workflowProcess.tracing)
@@ -457,7 +510,7 @@ export const useChat = (
         })
       },
       onNodeFinished: ({ data: nodeFinishedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess?.tracing)
             return
 
@@ -489,7 +542,7 @@ export const useChat = (
           audioPlayer.playAudioWithAudio(audio, false)
       },
       onLoopStart: ({ data: loopStartedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess)
             return
           if (!responseItem.workflowProcess.tracing)
@@ -501,7 +554,7 @@ export const useChat = (
         })
       },
       onLoopFinish: ({ data: loopFinishedData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.workflowProcess?.tracing)
             return
           const tracing = responseItem.workflowProcess.tracing
@@ -517,7 +570,7 @@ export const useChat = (
         })
       },
       onHumanInputRequired: ({ data: humanInputRequiredData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (!responseItem.humanInputFormDataList) {
             responseItem.humanInputFormDataList = [humanInputRequiredData]
           }
@@ -538,22 +591,21 @@ export const useChat = (
         })
       },
       onHumanInputFormFilled: ({ data: humanInputFilledFormData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
-          if (responseItem.humanInputFormDataList?.length) {
-            const currentFormIndex = responseItem.humanInputFormDataList.findIndex(item => item.node_id === humanInputFilledFormData.node_id)
-            if (currentFormIndex > -1)
-              responseItem.humanInputFormDataList.splice(currentFormIndex, 1)
-          }
+        updateResumeNode((responseItem) => {
           if (!responseItem.humanInputFilledFormDataList) {
             responseItem.humanInputFilledFormDataList = [humanInputFilledFormData]
           }
           else {
-            responseItem.humanInputFilledFormDataList.push(humanInputFilledFormData)
+            const currentFilledFormIndex = responseItem.humanInputFilledFormDataList.findIndex(item => item.node_id === humanInputFilledFormData.node_id)
+            if (currentFilledFormIndex > -1)
+              responseItem.humanInputFilledFormDataList[currentFilledFormIndex] = humanInputFilledFormData
+            else
+              responseItem.humanInputFilledFormDataList.push(humanInputFilledFormData)
           }
         })
       },
       onHumanInputFormTimeout: ({ data: humanInputFormTimeoutData }) => {
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           if (responseItem.humanInputFormDataList?.length) {
             const currentFormIndex = responseItem.humanInputFormDataList.findIndex(item => item.node_id === humanInputFormTimeoutData.node_id)
             responseItem.humanInputFormDataList[currentFormIndex].expiration_time = humanInputFormTimeoutData.expiration_time
@@ -568,7 +620,7 @@ export const useChat = (
           {},
           otherOptions,
         )
-        updateChatTreeNode(messageId, (responseItem) => {
+        updateResumeNode((responseItem) => {
           responseItem.workflowProcess!.status = WorkflowRunningStatus.Paused
         })
       },
@@ -629,6 +681,7 @@ export const useChat = (
     {
       onGetConversationMessages,
       onGetSuggestedQuestions,
+      onConversationIdAssigned,
       onConversationComplete,
       isPublicAPI,
     }: SendCallback,
@@ -707,6 +760,14 @@ export const useChat = (
     let hasSetResponseId = false
 
     const getOrCreatePlayer = createAudioPlayerManager()
+    const handleSendSetupError = (error?: unknown) => {
+      handleResponding(false)
+      removeChatTreeNode(placeholderQuestionId)
+
+      if (error instanceof Error && error.message) {
+        notify({ type: 'error', message: error.message })
+      }
+    }
 
     const otherOptions: IOtherOptions = {
       isPublicAPI,
@@ -730,8 +791,10 @@ export const useChat = (
           hasSetResponseId = true
         }
 
-        if (isFirstMessage && newConversationId)
+        if (isFirstMessage && newConversationId) {
           conversationIdRef.current = newConversationId
+          onConversationIdAssigned?.(newConversationId)
+        }
 
         taskIdRef.current = taskId
         if (messageId)
@@ -921,6 +984,7 @@ export const useChat = (
         // If there are no streaming messages, we still need to set the conversation_id to avoid create a new conversation when regeneration in chat-flow.
         if (conversation_id) {
           conversationIdRef.current = conversation_id
+          onConversationIdAssigned?.(conversation_id)
         }
         if (message_id && !hasSetResponseId) {
           questionItem.id = `question-${message_id}`
@@ -1109,15 +1173,15 @@ export const useChat = (
         }
       },
       onHumanInputFormFilled: ({ data: humanInputFilledFormData }) => {
-        if (responseItem.humanInputFormDataList?.length) {
-          const currentFormIndex = responseItem.humanInputFormDataList!.findIndex(item => item.node_id === humanInputFilledFormData.node_id)
-          responseItem.humanInputFormDataList.splice(currentFormIndex, 1)
-        }
         if (!responseItem.humanInputFilledFormDataList) {
           responseItem.humanInputFilledFormDataList = [humanInputFilledFormData]
         }
         else {
-          responseItem.humanInputFilledFormDataList.push(humanInputFilledFormData)
+          const currentFilledFormIndex = responseItem.humanInputFilledFormDataList.findIndex(item => item.node_id === humanInputFilledFormData.node_id)
+          if (currentFilledFormIndex > -1)
+            responseItem.humanInputFilledFormDataList[currentFilledFormIndex] = humanInputFilledFormData
+          else
+            responseItem.humanInputFilledFormDataList.push(humanInputFilledFormData)
         }
         updateCurrentQAOnTree({
           placeholderQuestionId,
@@ -1160,13 +1224,22 @@ export const useChat = (
     if (workflowEventsAbortControllerRef.current)
       workflowEventsAbortControllerRef.current.abort()
 
-    ssePost(
-      url,
-      {
-        body: bodyParams,
-      },
-      otherOptions,
-    )
+    try {
+      const sendPromise = ssePost(
+        url,
+        {
+          body: bodyParams,
+        },
+        otherOptions,
+      )
+
+      Promise.resolve(sendPromise).catch(handleSendSetupError)
+    }
+    catch (error) {
+      handleSendSetupError(error)
+      return false
+    }
+
     return true
   }, [
     t,
@@ -1175,6 +1248,7 @@ export const useChat = (
     config?.suggested_questions_after_answer,
     updateCurrentQAOnTree,
     updateChatTreeNode,
+    removeChatTreeNode,
     notify,
     handleResponding,
     formatTime,

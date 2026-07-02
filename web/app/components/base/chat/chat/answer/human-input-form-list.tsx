@@ -1,6 +1,6 @@
 import type { DeliveryMethod, HumanInputNodeType } from '@/app/components/workflow/nodes/human-input/types'
 import type { Node } from '@/app/components/workflow/types'
-import type { HumanInputFormData } from '@/types/workflow'
+import type { HumanInputFilledFormData, HumanInputFormData } from '@/types/workflow'
 import { useMemo } from 'react'
 import { DeliveryMethodType } from '@/app/components/workflow/nodes/human-input/types'
 import ContentWrapper from './human-input-content/content-wrapper'
@@ -8,12 +8,14 @@ import { UnsubmittedHumanInputContent } from './human-input-content/unsubmitted'
 
 type HumanInputFormListProps = {
   humanInputFormDataList: HumanInputFormData[]
+  humanInputFilledFormDataList?: HumanInputFilledFormData[]
   onHumanInputFormSubmit?: (formToken: string, formData: { inputs: Record<string, string>, action: string }) => Promise<void>
   getHumanInputNodeData?: (nodeID: string) => Node<HumanInputNodeType> | undefined
 }
 
 const HumanInputFormList = ({
   humanInputFormDataList,
+  humanInputFilledFormDataList = [],
   onHumanInputFormSubmit,
   getHumanInputNodeData,
 }: HumanInputFormListProps) => {
@@ -42,6 +44,13 @@ const HumanInputFormList = ({
     }, {} as Record<string, { showEmailTip: boolean, isEmailDebugMode: boolean, showDebugModeTip: boolean }>)
   }, [getHumanInputNodeData, humanInputFormDataList])
 
+  const filledFormDataByNodeId = useMemo(() => {
+    return humanInputFilledFormDataList.reduce((acc, formData) => {
+      acc[formData.node_id] = formData
+      return acc
+    }, {} as Record<string, HumanInputFilledFormData>)
+  }, [humanInputFilledFormDataList])
+
   const filteredHumanInputFormDataList = humanInputFormDataList.filter(formData => formData.display_in_ui)
 
   return (
@@ -60,6 +69,7 @@ const HumanInputFormList = ({
             >
               <UnsubmittedHumanInputContent
                 formData={formData}
+                submittedFormData={filledFormDataByNodeId[formData.node_id]}
                 showEmailTip={!!deliveryMethodsConfig[formData.node_id]?.showEmailTip}
                 isEmailDebugMode={!!deliveryMethodsConfig[formData.node_id]?.isEmailDebugMode}
                 showDebugModeTip={!!deliveryMethodsConfig[formData.node_id]?.showDebugModeTip}

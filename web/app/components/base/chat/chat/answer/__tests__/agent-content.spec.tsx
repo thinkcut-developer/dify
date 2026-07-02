@@ -79,6 +79,11 @@ describe('AgentContent', () => {
     expect(screen.getByTestId('agent-content-markdown')).toHaveTextContent('Direct Content')
   })
 
+  it('converts direct image urls in content into markdown image syntax', () => {
+    render(<AgentContent item={mockItem} content="https://example.com/profile.png" />)
+    expect(screen.getByTestId('agent-content-markdown')).toHaveAttribute('data-content', '![](https://example.com/profile.png)')
+  })
+
   it('renders agent_thoughts if content is absent', () => {
     const itemWithThoughts = {
       ...mockItem,
@@ -94,6 +99,17 @@ describe('AgentContent', () => {
     expect(thoughtMarkdowns[0]).toHaveTextContent('Thought 1')
     expect(thoughtMarkdowns[1]).toHaveTextContent('Thought 2')
     expect(screen.getByTestId('thought-component')).toHaveTextContent('Thought 1')
+  })
+
+  it('converts image urls in agent thoughts into markdown image syntax', () => {
+    const itemWithThoughts = {
+      ...mockItem,
+      agent_thoughts: [
+        { thought: 'https://example.com/thought-image.webp' },
+      ],
+    }
+    render(<AgentContent item={itemWithThoughts as ChatItem} responding={false} />)
+    expect(screen.getByTestId('agent-thought-markdown')).toHaveAttribute('data-content', '![](https://example.com/thought-image.webp)')
   })
 
   it('passes correct isFinished to Thought component', () => {

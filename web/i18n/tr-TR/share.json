@@ -1,4 +1,5 @@
 {
+  "chat.aiDisclaimer": "ThinkSuite AI hata yapabilir; işlem öncesi kontrol ediniz.",
   "chat.chatFormTip": "Sohbet başladıktan sonra sohbet ayarları değiştirilemez.",
   "chat.chatSettingsTitle": "Yeni sohbet kurulumu",
   "chat.collapse": "Kısıtla",
@@ -63,6 +64,7 @@
   "humanInput.expired": "Bu isteğin süresi dolmuş gibi görünüyor.",
   "humanInput.expiredTip": "Bu eylemin süresi doldu.",
   "humanInput.formNotFound": "Form bulunamadı.",
+  "humanInput.invalidOperation": "Geçersiz işlem.",
   "humanInput.rateLimitExceeded": "Çok fazla istek, lütfen daha sonra tekrar deneyin.",
   "humanInput.recorded": "Girişiniz kaydedildi.",
   "humanInput.sorry": "Üzgünüz!",

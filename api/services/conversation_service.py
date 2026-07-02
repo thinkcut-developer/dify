@@ -355,3 +355,62 @@ class ConversationService:
                 "updated_at": naive_utc_now(),  # Update timestamp
                 **updated_variable.model_dump(),
             }
+
+    @classmethod
+    def reset_conversation_variables(
+        cls,
+        app_model: App,
+        conversation_id: str,
+        user: Union[Account, EndUser] | None,
+    ) -> int:
+        """
+        Reset stored conversation variables back to the workflow defaults without deleting the conversation.
+
+        Returns:
+            Number of variables reset.
+        """
+        conversation = cls.get_conversation(app_model, conversation_id, user)
+        workflow = app_model.workflow
+
+        if not workflow or not workflow.conversation_variables:
+            return 0
+
+        workflow_variables_by_id = {variable.id: variable for variable in workflow.conversation_variables}
+        workflow_variables_by_name = {variable.name: variable for variable in workflow.conversation_variables}
+
+        stmt = (
+            select(ConversationVariable)
+            .where(ConversationVariable.app_id == app_model.id)
+            .where(ConversationVariable.conversation_id == conversation.id)
+        )
+
+        reset_count = 0
+        updater = ConversationVariableUpdater(session_factory.get_session_maker())
+
+        with session_factory.create_session() as session:
+            existing_variables = session.scalars(stmt).all()
+
+        for existing_variable in existing_variables:
+            current_variable = existing_variable.to_variable()
+            default_variable = workflow_variables_by_id.get(current_variable.id) or workflow_variables_by_name.get(
+                current_variable.name
+            )
+
+            if not default_variable:
+                continue
+
+            updated_variable_dict = {
+                "id": current_variable.id,
+                "name": current_variable.name,
+                "description": current_variable.description,
+                "value_type": current_variable.value_type,
+                "value": default_variable.value,
+                "selector": current_variable.selector,
+            }
+
+            updated_variable = variable_factory.build_conversation_variable_from_mapping(updated_variable_dict)
+            updater.update(conversation.id, updated_variable)
+            reset_count += 1
+
+        updater.flush()
+        return reset_count

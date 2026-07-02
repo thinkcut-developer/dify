@@ -59,14 +59,14 @@ const Operation: FC<OperationProps> = ({
           }
         </div>
         <Button
-          className="ml-3 w-8 px-0"
+          className="ml-3 h-10 w-10 rounded-2xl border border-white/20 px-0 shadow-lg shadow-cyan-500/20"
           variant="primary"
           onClick={readonly ? noop : onSend}
           data-testid="send-button"
           style={
             theme
               ? {
-                  backgroundColor: theme.primaryColor,
+                  background: `linear-gradient(135deg, ${theme.primaryColor} 0%, #0EA5E9 100%)`,
                 }
               : {}
           }

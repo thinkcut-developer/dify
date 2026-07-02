@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ChatConfig } from '../../types'
+import type { ChatConfig, ChatItem } from '../../types'
 import type { AppConversationData, AppData, AppMeta, ConversationItem } from '@/models/share'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -10,6 +10,7 @@ import {
   fetchChatList,
   fetchConversations,
   generationConversationName,
+  resetConversationVariables,
 } from '@/service/share'
 import { shareQueryKeys } from '@/service/use-share'
 import { TransferMethod } from '@/types/app'
@@ -85,6 +86,7 @@ vi.mock('@/service/share', async (importOriginal) => {
     fetchAppParams: vi.fn(),
     getAppAccessModeByAppCode: vi.fn(),
     updateFeedback: vi.fn(),
+    resetConversationVariables: vi.fn(),
   }
 })
 
@@ -97,6 +99,7 @@ vi.mock('@/service/use-try-app', () => ({
 const mockFetchConversations = vi.mocked(fetchConversations)
 const mockFetchChatList = vi.mocked(fetchChatList)
 const mockGenerationConversationName = vi.mocked(generationConversationName)
+const mockResetConversationVariables = vi.mocked(resetConversationVariables)
 
 const createQueryClient = () => new QueryClient({
   defaultOptions: {
@@ -171,6 +174,7 @@ describe('useEmbeddedChatbot', () => {
     mockStoreState.embeddedUserId = 'embedded-user-1'
     mockFetchConversations.mockResolvedValue({ data: [], has_more: false, limit: 100 })
     mockFetchChatList.mockResolvedValue({ data: [] })
+    mockResetConversationVariables.mockResolvedValue(undefined as never)
   })
 
   afterEach(() => {
@@ -321,6 +325,20 @@ describe('useEmbeddedChatbot', () => {
 
   // Scenario: conversation id updates persist to localStorage.
   describe('Conversation id persistence', () => {
+    it('should store the active conversation id in localStorage as soon as it is assigned', async () => {
+      const { result } = await renderWithClient(() => useEmbeddedChatbot(AppSourceType.webApp))
+
+      act(() => {
+        result.current.handleNewConversationActivated('conversation-live')
+      })
+
+      await waitFor(() => {
+        const storedValue = localStorage.getItem(CONVERSATION_ID_INFO)
+        const parsed = storedValue ? JSON.parse(storedValue) : {}
+        expect(parsed['app-1']?.['embedded-user-1']).toBe('conversation-live')
+      })
+    })
+
     it('should store new conversation id in localStorage after completion', async () => {
       // Arrange
       const listData = createConversationData({
@@ -388,6 +406,71 @@ describe('useEmbeddedChatbot', () => {
         const storedValue = localStorage.getItem(CONVERSATION_ID_INFO)
         const parsed = storedValue ? JSON.parse(storedValue) : {}
         expect(parsed['app-1']).toBeUndefined()
+      })
+    })
+
+    it('should clear only the current user conversation mapping when reset is requested', async () => {
+      localStorage.setItem(CONVERSATION_ID_INFO, JSON.stringify({
+        'app-1': {
+          'embedded-user-1': 'conv-id',
+          'another-user': 'keep-me',
+        },
+        'app-2': {
+          DEFAULT: 'other-app-conversation',
+        },
+      }))
+
+      const { result } = await renderWithClient(() => useEmbeddedChatbot(AppSourceType.webApp))
+
+      await act(async () => {
+        await result.current.handleResetConversationState()
+      })
+
+      await waitFor(() => {
+        const storedValue = localStorage.getItem(CONVERSATION_ID_INFO)
+        const parsed = storedValue ? JSON.parse(storedValue) : {}
+        expect(parsed['app-1']?.['embedded-user-1']).toBeUndefined()
+        expect(parsed['app-1']?.['another-user']).toBe('keep-me')
+        expect(parsed['app-2']?.DEFAULT).toBe('other-app-conversation')
+      })
+    })
+
+    it('should reset the active conversation variables without deleting the conversation', async () => {
+      localStorage.setItem(CONVERSATION_ID_INFO, JSON.stringify({
+        'app-1': {
+          'embedded-user-1': 'conversation-1',
+        },
+      }))
+      mockFetchConversations.mockResolvedValue(createConversationData({
+        data: [createConversationItem({ id: 'conversation-1', name: 'Conversation 1' })],
+      }))
+      mockFetchChatList.mockResolvedValue({
+        data: [{
+          id: 'msg-1',
+          query: 'Hello',
+          answer: 'Hi',
+          inputs: { department: 'sales' },
+          message_files: [],
+          feedback: null,
+          retriever_resources: [],
+          parent_message_id: null,
+          agent_thoughts: [],
+        }],
+      })
+
+      const { result } = await renderWithClient(() => useEmbeddedChatbot(AppSourceType.webApp))
+
+      await waitFor(() => {
+        expect(result.current.currentConversationInputs).toEqual({ department: 'sales' })
+      })
+
+      await act(async () => {
+        await result.current.handleResetConversationState()
+      })
+
+      expect(mockResetConversationVariables).toHaveBeenCalledWith(AppSourceType.webApp, 'app-1', 'conversation-1')
+      await waitFor(() => {
+        expect(result.current.clearChatList).toBe(true)
       })
     })
   })
@@ -832,6 +915,70 @@ describe('useEmbeddedChatbot', () => {
       const chatList = result.current.appPrevChatList
       const question = chatList.find((m: unknown) => (m as Record<string, unknown>).id === 'question-msg-no-files')
       expect(question).toBeDefined()
+    })
+
+    it('should preserve human input form data when chat history is reloaded', async () => {
+      localStorage.setItem(CONVERSATION_ID_INFO, JSON.stringify({ 'app-1': { DEFAULT: 'conversation-1' } }))
+      mockFetchConversations.mockResolvedValue(
+        createConversationData({ data: [createConversationItem({ id: 'conversation-1' })] }),
+      )
+      mockFetchChatList.mockResolvedValue({
+        data: [
+          {
+            id: 'msg-paused',
+            query: 'İzin talebi',
+            answer: '',
+            status: 'paused',
+            extra_contents: [
+              {
+                type: 'human_input',
+                submitted: false,
+                workflow_run_id: 'workflow-1',
+                form_definition: {
+                  form_id: 'form-1',
+                  form_token: 'token-1',
+                  node_id: 'node-1',
+                  node_title: 'İzin Onayı',
+                  display_in_ui: true,
+                  form_content: 'Onaylıyor musunuz?',
+                  inputs: [],
+                  actions: [],
+                },
+              },
+            ],
+          },
+          {
+            id: 'msg-submitted',
+            query: 'İzin talebi tamamlandı',
+            answer: '',
+            status: 'normal',
+            extra_contents: [
+              {
+                type: 'human_input',
+                submitted: true,
+                form_submission_data: {
+                  node_id: 'node-2',
+                  node_title: 'İzin Onayı',
+                  rendered_content: 'Onaylıyor musunuz?',
+                  action_id: 'approve',
+                  action_text: 'Onayla',
+                },
+              },
+            ],
+          },
+        ],
+      })
+
+      const { result } = await renderWithClient(() => useEmbeddedChatbot(AppSourceType.webApp))
+
+      await waitFor(() => expect(result.current.appPrevChatList.length).toBeGreaterThan(1), { timeout: 3000 })
+
+      const pausedAnswer = result.current.appPrevChatList.find((item: unknown) => (item as Record<string, unknown>).id === 'msg-paused') as ChatItem | undefined
+      expect(pausedAnswer?.humanInputFormDataList).toHaveLength(1)
+      expect(pausedAnswer?.workflow_run_id).toBe('workflow-1')
+
+      const submittedAnswer = result.current.appPrevChatList.find((item: unknown) => (item as Record<string, unknown>).id === 'msg-submitted') as ChatItem | undefined
+      expect(submittedAnswer?.humanInputFilledFormDataList).toHaveLength(1)
     })
   })
 

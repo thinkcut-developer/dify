@@ -155,6 +155,11 @@ describe('Chat', () => {
       expect(screen.getByTestId('slot-node')).toBeInTheDocument()
     })
 
+    it('should render footer notice when provided', () => {
+      renderChat({ footerNotice: <span>footer notice</span> })
+      expect(screen.getByTestId('chat-footer-notice')).toHaveTextContent('footer notice')
+    })
+
     it('should apply flex-col to root when isTryApp=true', () => {
       renderChat({ isTryApp: true })
       expect(screen.getByTestId('chat-root')).toHaveClass('flex', 'flex-col')

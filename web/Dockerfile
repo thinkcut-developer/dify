@@ -34,7 +34,8 @@ WORKDIR /app/web
 COPY --from=packages /app/web/ .
 COPY . .
 
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ARG NODE_BUILD_MEMORY=4096
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_BUILD_MEMORY}"
 RUN pnpm build
 
 

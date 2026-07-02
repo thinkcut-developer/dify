@@ -9,6 +9,7 @@ import Divider from '@/app/components/base/divider'
 import DifyLogo from '@/app/components/base/logo/dify-logo'
 import Tooltip from '@/app/components/base/tooltip'
 import { useGlobalPublicStore } from '@/context/global-public-context'
+import useTheme from '@/hooks/use-theme'
 import { cn } from '@/utils/classnames'
 import { isClient } from '@/utils/client'
 import {
@@ -45,6 +46,8 @@ const Header: FC<IHeaderProps> = ({
   const [showToggleExpandButton, setShowToggleExpandButton] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const systemFeatures = useGlobalPublicStore(s => s.systemFeatures)
+  const { theme: appTheme } = useTheme()
+  const isDarkMode = appTheme === 'dark'
 
   const handleMessageReceived = useCallback((event: MessageEvent) => {
     let currentParentOrigin = parentOrigin
@@ -55,7 +58,7 @@ const Header: FC<IHeaderProps> = ({
     if (event.origin !== currentParentOrigin)
       return
     if (event.data.type === 'dify-chatbot-config')
-      setShowToggleExpandButton(event.data.payload.isToggledByButton && !event.data.payload.isDraggable)
+      setShowToggleExpandButton(!!event.data.payload.isToggledByButton)
   }, [parentOrigin])
 
   useEffect(() => {
@@ -75,15 +78,46 @@ const Header: FC<IHeaderProps> = ({
   const handleToggleExpand = useCallback(() => {
     if (!isIframe || !showToggleExpandButton)
       return
-    setExpanded(!expanded)
-    window.parent.postMessage({
-      type: 'dify-chatbot-expand-change',
-    }, parentOrigin)
-  }, [isIframe, parentOrigin, showToggleExpandButton, expanded])
+    setExpanded(prev => !prev)
+
+    const message = { type: 'dify-chatbot-expand-change' }
+
+    // Prefer locked parent origin, then referrer origin, finally wildcard as a safe delivery fallback.
+    // Parent side already validates sender origin before applying expand state.
+    const fallbackOrigin = (() => {
+      if (!isClient)
+        return '*'
+      if (parentOrigin)
+        return parentOrigin
+      if (document.referrer) {
+        try {
+          return new URL(document.referrer).origin
+        }
+        catch {
+          return '*'
+        }
+      }
+      return '*'
+    })()
+
+    try {
+      window.parent.postMessage(message, fallbackOrigin)
+    }
+    catch {
+      window.parent.postMessage(message, '*')
+    }
+  }, [isIframe, parentOrigin, showToggleExpandButton])
 
   if (!isMobile) {
     return (
-      <div className="flex h-14 shrink-0 items-center justify-end p-3">
+      <div
+        className={cn(
+          'flex h-14 shrink-0 items-center justify-end p-3 backdrop-blur-md',
+          isDarkMode
+            ? 'border-b border-white/8 bg-[linear-gradient(90deg,rgba(12,18,32,0.92)_0%,rgba(18,24,42,0.86)_100%)]'
+            : 'border-b border-slate-200/85 bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(241,245,249,0.92)_100%)]',
+        )}
+      >
         <div className="flex items-center gap-1">
           {/* powered by */}
           <div className="shrink-0">
@@ -142,14 +176,23 @@ const Header: FC<IHeaderProps> = ({
 
   return (
     <div
-      className={cn('flex h-14 shrink-0 items-center justify-between rounded-t-2xl px-3')}
-      style={CssTransform(theme?.headerBorderBottomStyle ?? '')}
+      className={cn(
+        'flex h-14 shrink-0 items-center justify-between rounded-t-[28px] px-4',
+        !isDarkMode && 'border-b border-slate-200/85 bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(241,245,249,0.92)_100%)] backdrop-blur-md',
+      )}
+      style={isDarkMode
+        ? Object.assign(
+            {},
+            CssTransform(theme?.backgroundHeaderColorStyle ?? ''),
+            CssTransform(theme?.headerBorderBottomStyle ?? ''),
+          )
+        : {}}
     >
       <div className="flex grow items-center space-x-3">
         {customerIcon}
         <div
-          className="truncate system-md-semibold"
-          style={CssTransform(theme?.colorFontOnHeaderStyle ?? '')}
+          className={cn('truncate system-md-semibold', !isDarkMode && 'text-slate-900')}
+          style={isDarkMode ? CssTransform(theme?.colorFontOnHeaderStyle ?? '') : {}}
         >
           {title}
         </div>
@@ -163,8 +206,8 @@ const Header: FC<IHeaderProps> = ({
               <ActionButton size="l" onClick={handleToggleExpand} data-testid="mobile-expand-button">
                 {
                   expanded
-                    ? <div className={cn('i-ri-collapse-diagonal-2-line h-[18px] w-[18px]', theme?.colorPathOnHeader)} />
-                    : <div className={cn('i-ri-expand-diagonal-2-line h-[18px] w-[18px]', theme?.colorPathOnHeader)} />
+                    ? <div className={cn('i-ri-collapse-diagonal-2-line h-[18px] w-[18px]', isDarkMode ? theme?.colorPathOnHeader : 'text-slate-500')} />
+                    : <div className={cn('i-ri-expand-diagonal-2-line h-[18px] w-[18px]', isDarkMode ? theme?.colorPathOnHeader : 'text-slate-500')} />
                 }
               </ActionButton>
             </Tooltip>
@@ -175,12 +218,12 @@ const Header: FC<IHeaderProps> = ({
             popupContent={t('chat.resetChat', { ns: 'share' })}
           >
             <ActionButton size="l" onClick={onCreateNewChat} data-testid="mobile-reset-chat-button">
-              <div className={cn('i-ri-reset-left-line h-[18px] w-[18px]', theme?.colorPathOnHeader)} />
+              <div className={cn('i-ri-reset-left-line h-[18px] w-[18px]', isDarkMode ? theme?.colorPathOnHeader : 'text-slate-500')} />
             </ActionButton>
           </Tooltip>
         )}
         {currentConversationId && inputsForms.length > 0 && !allInputsHidden && (
-          <ViewFormDropdown iconColor={theme?.colorPathOnHeader} />
+          <ViewFormDropdown iconColor={isDarkMode ? theme?.colorPathOnHeader : 'text-slate-500'} />
         )}
       </div>
     </div>
